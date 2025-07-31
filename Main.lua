@@ -1,1 +1,691 @@
---[[ v1.0.0 https://wearedevs.net/obfuscator ]] return(function(...)local I={"\099\079\068\120\072\078\105\107\112\104\086\071\089\089\072\082\097\108\111\104\111\098\054\086\105\097\122\105\084\051\048\089\075\052\061\061","\083\090\051\121\110\072\119\109\090\117\089\077\084\070\111\043\080\121\053\081\101\086\074\083\055\079\098\097\089\104\071\099\076\068\088\097\047\111\068\114\115\054\111\053\078\100\077\114\075\114\083\109\043\074\117\098\104\067\116\050\090\117\079\103\082\069\050\054\043\076\118\108\073\116\110\114\099\113\054\103\078\047\085\083\055\117\108\085\052\074\112\118\114\122\120\077\075\049\065\098\082\100\061\061";"\080\110\118\077\111\106\118\106\052\053\087\048\078\109\090\052\102\050\077\097\080\073\100\072\104\067\049\103\108\120\069\049\052\068\077\055\122\052\104\080\087\099\072\114\081\069\055\117\110\122\080\121\109\071\101\114\119\102\049\053\043\050\055\071\047\068\067\067\075\109\054\108\115\109\090\079\047\072\086\097\050\066\106\065\113\053\067\080\115\048\116\069\053\102\066\087\075\106\107\113\074\104\122\047\090\080\048\054\043\076\108\084\106\075\090\049\090\084\115\101\072\118\116\077\052\056\089\081\080\084\061\061","\065\082\076\084\074\119\083\101\084\053\043\116\066\076\080\043\099\111\076\101\043\051\065\047\110\043\051\061";"\112\075\054\113\102\116\111\121\107\110\074\071\108\122\066\077\119\052\061\061","\117\054\079\054\050\122\081\103\056\100\061\061";"\102\072\087\082\119\057\088\053\068\119\111\056\116\081\043\087";"\043\119\068\117\055\121\069\079\077\087\082\049\086\081\067\047";"\080\071\071\106\114\074\114\098\102\090\056\089\048\074\107\105\111\070\043\050\099\071\114\065\043\122\086\061","\102\052\061\061","\112\074\053\077\097\086\097\084\082\050\090\065\052\109\087\109";"\083\053\068\055\110\050\082\102\051\089\050\086\075\098\100\087";"\106\081\120\048\080\074\107\090\116\116\088\112\068\049\043\099";"\108\119\066\114\119\074\052\075\119\072\054\117\066\079\048\090","\088\047\066\087\085\090\119\109\107\052\079\051\051\088\116\076\081\098\104\056\053\085\118\051\043\073\105\113\081\111\079\048\107\122\109\117\104\088\072\079\114\116\077\113\081\055\097\088\110\078\072\069\049\084\088\099\054\067\071\054\055\104\122\110\117\052\043\057\052\065\053\084\070\086\099\112\088\068\078\051\078\055\078\071\119\076\110\110\083\090\088\106\111\085\049\083\109\089\097\090\071\114\066\114\076\110\101\107\078\111\068\104\122\102\057\122\120\072\108\077";"\104\110\107\068\114\069\056\085\109\108\080\084\106\049\056\090\083\049\079\056\084\104\053\098\102\077\107\085\086\118\057\061";"\084\070\078\043\086\089\088\052\078\104\089\099\047\103\082\116\051\079\106\100\118\099\089\110\078\052\061\061";"\078\054\111\104\078\069\074\113\047\087\043\105\057\115\114\079\105\098\050\115\068\080\108\079\118\067\119\085\121\102\076\073\122\055\099\055\088\102\084\075\122\108\078\122\119\053\097\101\057\080\065\053\101\098\120\068\121\074\113\051\098\104\080\070\055\080\073\102\103\057\116\112\068\084\103\100\085\077\056\056\112\117\061\061";"\050\080\109\080\056\112\100\061","\077\049\085\066\080\102\119\118\065\115\086\115\112\100\048\122\078\116\117\061";"\086\083\107\120\086\073\100\061","\077\118\047\066\116\116\106\052\043\050\078\069\122\120\053\079\109\097\087\071\054\097\115\076\048\072\057\101\065\086\086\100\074\043\116\051\115\086\043\110\067\082\089\077\057\097\113\100\102\103\074\099\079\088\074\099\065\087\115\068\102\082\099\053\065\047\111\081\079\080\067\099\080\043\111\112\051\107\070\077\121\120\043\119\089\111\110\118\072\087\100\112\118\072\079\054\074\052\061\061";"\053\114\049\119\086\121\098\068\053\083\071\061";"\106\079\106\048\102\122\103\055\086\081\111\109\078\081\066\121","\055\110\085\082\082\074\106\089\075\119\043\080\106\099\102\072\075\121\066\051\053\111\075\048\043\105\078\061","\075\047\078\081\047\069\114\109\108\052\061\061","\056\065\101\065\098\117\057\111\047\107\116\099\121\054\117\115\097\102\118\072\078\082\080\066\054\065\076\088\121\048\074\087\071\116\075\106\075\088\067\104\078\100\072\073","\109\081\116\051\068\122\066\089\117\069\074\048\119\110\074\047","\069\099\049\084\074\047\100\061","\119\122\074\119\108\090\087\103\107\122\043\051\102\074\103\109","\099\075\111\115\080\065\120\079\052\081\086\100\087\081\099\085\122\074\102\050\074\121\106\050\048\088\078\120\066\080\056\102\065\090\107\055\051\118\084\106\105\088\114\068\065\049\113\120\080\105\088\114\078\079\080\099\075\072\081\077\098\054\071\076\098\104\079\112\109\086\077\116\099\065\055\113\102\109\068\117\090\105\089\116\090\052\051\073\119\099\083\106\074\117\067\065\072\100\061\061";"\043\075\057\084\043\081\075\120\106\120\074\099\068\110\112\051\078\084\061\061","\078\056\066\104\109\072\099\053";"\110\115\110\072\101\121\086\047\106\104\089\080\073\043\090\053\101\097\082\121\106\066\070\103\090\052\050\113\054\069\114\077\102\052\085\082\119\103\087\073\080\074\071\109\080\053\079\054\085\047\048\120\110\109\114\102\047\097\114\115\078\051\111\099\114\099\076\115\120\119\048\075\074\077\077\087\097\075\081\089\119\101\109\117\053\057\086\103\112\065\053\080\109\050\050\085\049\073\075\061";"\107\098\107\075\043\069\086\105\107\104\083\112\122\097\111\107\099\099\117\050\115\118\110\122\103\113\068\111\102\119\080\071\048\111\049\075\121\085\081\111\090\105\074\106\047\120\050\051\122\051\083\073\084\098\067\078\112\075\073\069\080\097\073\054\107\065\085\073\050\051\114\057\110\065\102\050\102\087\117\084\051\074\054\077\107\112\053\109\087\099\071\069\077\088\089\085\067\066\107\119\122\086\121\075\052\109\105\078\121\052\061\061";"\116\074\089\075\066\072\089\082\068\079\087\077\098\055\068\103\072\119\078\061","\078\106\113\048\071\086\051\108\109\072\076\051\088\087\078\049\107\069\081\083";"\114\111\065\113\090\103\118\067\051\075\087\122\105\081\055\109\053\106\052\047\106\052\061\061";"\116\120\116\100\049\090\057\061";"\089\082\097\108\101\072\105\101\097\100\101\120\080\075\111\083\043\119\051\075\122\047\073\047\082\105\116\097\050\075\057\052\090\121\108\071\119\107\054\048\080\109\085\077\043\105\087\107\118\087\066\085\071\056\072\122\081\081\050\104\102\083\074\065\066\047\085\117\048\087\089\070\076\056\081\056\116\119\082\107\083\083\081\048\085\114\101\117\075\119\116\057\112\043\080\122\053\069\077\052\105\080\106\076";"\048\098\108\097\121\085\097\061";"\085\120\103\102\088\110\051\061";"\119\043\087\087\108\120\048\114\068\075\110\051\112\122\103\077\116\117\061\061";"\120\105\077\072\078\099\098\090\056\122\086\089\070\121\055\057\052\049\112\088\087\110\115\103\086\065\051\103\067\055\086\076\121\043\048\097\047\082\054\102\082\122\113\072\068\074\104\118\078\047\118\107\068\048\052\099\068\108\056\067\054\071\113\079\101\074\066\078\116\073\081\103\117\087\077\086\087\068\113\066\108\077\068\077\079\099\090\072\114\099\083\104\054\050\057\085\104\102\098\102\109\110\072\117\067\107\106\112";"\108\122\082\102\110\113\122\051\077\072\122\089\066\109\109\104","\102\111\118\083\086\056\085\088\076\104\048\115\090\100\061\061";"\076\120\122\070\075\082\104\099\057\112\080\105\108\055\102\081\099\121\120\089\116\116\104\100\113\051\083\078\116\102\121\108\084\087\054\100\104\052\075\048\083\051\077\057\056\055\079\089\083\086\098\106\116\114\053\049\090\104\071\066\073\105\088\075\054\114\115\072\107\078\071\087\107\117\090\057\102\118\067\073\079\107\117\103\079\115\103\079\100\083\053\118\116\097\070\103\072\074\078\078\121\090\112\111";"\109\072\066\069\098\114\087\117\112\079\107\048\072\079\111\104\043\100\061\061";"\047\048\088\055\113\113\050\098\067\104\107\115\052\066\106\108\100\098\097\111\109\056\051\113\053\108\047\103\118\110\108\053\086\117\121\061","\088\082\073\065\057\101\052\061","\079\120\083\097\106\072\051\061";"\048\107\107\098\053\111\118\053\107\052\043\113\047\090\082\103","\119\090\111\084";"\050\043\086\080\086\080\052\117\066\049\110\077\080\097\048\049";"\071\110\117\076\051\103\099\115\080\077\048\067\099\104\079\077\053\070\085\057\049\051\055\053\080\100\056\117\122\117\110\068\098\081\111\072\084\055\084\050\074\100\121\097\115\118\069\099\100\115\084\076\054\080\066\087\106\053\122\108\050\050\100\103\076\079\105\108\108\074\081\056\117\099\122\119\070\111\080\121\078\047\101\086\048\117\049\077\048\068\084\103\057\065\078\061";"\086\057\100\077\098\113\118\083\112\120\120\086\109\051\070\115\074\051\088\099\107\108\083\055\066\052\117\077\069\050\079\067\049\121\100\053\065\055\097\052\080\072\097\090\048\057\054\103\084\107\097\080\072\103\052\068\080\053\054\067\119\107\090\107\104\048\120\047\087\086\120\087\112\076\101\098\097\100\066\075\110\071\067\110\110\101\073\068\100\086\049\088\100\056\065\110\086\099\113\088\112\118\102\070\099\077\053\088\085\052\106\101\069\099\079\108\071\121\100\085\053\085\116\084\080\114\081\069\121\114\108\077\105\073\118\070\053\052\061\061","\111\097\055\054\120\071\099\074\076\069\088\050\113\104\101\043\081\101\083\109\067\121\084\061","\086\089\085\071\102\099\122\078\073\053\089\052\120\107\118\067";"\086\080\116\104\057\076\052\103\068\047\068\072\102\075\110\056","\116\080\112\043\056\107\055\122\066\120\057\079\087\085\073\055","\120\054\055\089\120\053\084\061","\088\057\097\108\085\082\054\078\088\083\077\068\119\048\051\067\082\068\114\115\116\106\065\082\070\070\104\083\121\110\113\076";"\119\117\107\089\085\066\117\115\114\110\114\052\067\103\111\090\055\053\121\119\098\082\049\076\052\079\097\076","\098\122\066\075\078\110\068\087\068\100\061\061";"\099\075\110\054\101\080\098\117\085\122\087\082\068\056\110\101\118\070\049\113\109\067\088\075\075\117\061\061";"\052\076\078\070\047\085\072\117\049\112\109\080\080\043\086\108\049\082\071\105\085\055\084\053\050\080\104\097\078\122\055\083\111\043\116\088\089\087\088\066\068\077\055\089\086\053\072\071\084\085\070\112\111\082\077\048\113\076\054\085\108\077\070\110\066\078\101\068\110\077\051\049\079\084\075\051\053\107\087\049\113\052\103\113\102\105\121\067\057\108\107\047\051\083\071\115\084\055\065\117\055\103\068\072\104\098\120\056\100\043\119\089\078\084\088\057\116\052\061\061","\089\114\053\086\078\057\100\061","\080\089\117\068\052\074\120\103\106\066\050\076\050\074\057\105","\117\049\111\111\108\081\099\087\108\100\061\061","\117\049\068\111\078\049\099\047\112\114\106\102\098\053\086\051","\053\079\078\098\071\082\069\097\057\119\054\076\122\119\071\071","\054\098\052\051\116\049\097\069\100\079\048\104\055\052\101\076\071\098\098\074\112\122\082\098\100\054\072\087\103\099\047\051\122\072\074\070\054\097\097\070\083\106\103\049\053\120\051\069\074\088\101\074\122\083\114\049\119\116\109\108\073\116\120\065\116\057\088\110\047\104\074\110\051\106\119\068\051\067\049\050\074\082\084\104\079\077\078\065\115\113\083\103\113\088\117\104\049\108\079\076\050\110\107\119\056\084\114\043\068\081\078\102\052\086\115\072\090\105\067\061";"\050\068\054\121\089\111\083\057\087\098\104\071";"\099\120\056\084\066\107\071\061";"\050\109\054\057\067\068\048\071\071\118\057\116\052\116\120\118\056\072\121\098\090\066\103\080\106\088\052\061";"\115\119\098\073\065\120\106\072\113\054\115\103\051\072\082\086\081\105\080\110\121\120\051\103\114\051\115\069\098\077\115\054\052\117\061\061";"\089\083\105\081\067\090\075\107\065\107\077\052\084\090\089\089\102\082\078\071\122\113\079\070\102\112\072\081\089\103\100\121";"\120\110\057\108\099\117\105\099\069\084\066\053\100\054\080\057","\111\082\065\103\106\114\117\061";"\105\049\105\050\102\054\120\120\089\100\061\061";"\068\100\069\067\086\105\117\061","\114\070\110\087\069\086\048\050\118\056\115\109";"\043\055\107\047\102\072\048\102\109\075\043\111\066\069\087\086\102\079\086\061","\071\080\078\071\113\043\100\061","\068\069\073\110\089\122\077\056\077\104\119\086\082\100\086\073\056\115\098\043\055\108\097\115\065\053\071\108\056\055\102\048\043\079\121\067\097\050\057\100\103\078\071\051\076\071\086\072\118\051\085\098\080\048\051\084\070\070\056\051\088\107\109\048\113\043\085\073\112\113\116\087\107\082\056\082\122\101\108\066\089\073\112\067\097\105\116\106\090\067\089\056\050\117\052\072\103\072\086\103\088\102\051\053\077\057\107\118\114\082\052\080\051\084\061\061";"\106\075\089\074\108\090\074\085\109\116\083\050\066\087\111\057\108\084\061\061";"\050\081\110\043\083\069\075\083\118\102\055\090\101\105\113\100\056\084\066\088\074\116\066\111\065\052\061\061","\102\114\099\083\054\119\113\083\043\084\061\061";"\052\052\085\074\111\066\071\061";"\114\080\103\110\083\054\097\088\077\122\085\073\101\117\065\072\101\083\072\086\112\120\075\101\056\086\071\065\067\118\079\107\051\117\061\061";"\099\072\075\116\057\071\114\055\105\050\047\113\065\080\087\104\084\055\115\067\085\100\061\061";"\111\114\104\120\087\105\051\061";"\088\110\055\100\066\097\082\071\110\120\081\067\099\105\115\085";"\114\121\098\122\067\084\053\083\052\098\083\105\114\101\101\106\077\105\090\050\101\122\089\053\085\097\049\089\049\087\052\079\112\043\085\077\052\069\107\114\090\103\083\111\118\084\099\089\056\047\118\081\067\098\111\098\055\089\043\068\117\065\112\101\107\068\097\114\079\102\099\089\089\078\121\120\097\069\065\109\081\054\113\086\112\057\084\065\100\070\103\097\107\114\102\108\055\084\102\090\116\052\122\099\098\097\067\053\121\101\077\115\076\121\078\120\110\050\087\106\107\052\061\061","\048\105\112\115\043\109\082\121\107\066\053\067\118\099\065\112";"\107\116\106\085\055\122\120\050\119\114\103\097\050\048\057\084","\117\049\107\117\066\122\106\097","\107\057\068\088\109\087\043\047\112\081\099\104\106\049\066\047\106\069\112\061";"\100\087\116\080\050\056\107\087\090\065\082\105\106\097\052\085","\121\082\043\067\107\054\117\119\082\057\088\065","\066\053\074\047\119\110\107\048\066\057\088\098\068\090\087\098";"\066\079\107\112\109\110\054\051\112\120\089\103\112\069\106\049\117\052\061\061";"\055\086\108\084\066\106\043\074\082\117\097\070\066\117\061\061","\080\043\112\069\102\074\043\053\116\116\066\081\109\072\116\075\107\117\061\061";"\067\119\090\049\107\105\120\066\118\111\084\048\052\088\056\117","\113\117\118\120\073\090\081\105\104\065\067\065\117\108\118\049\100\099\057\061","\068\113\118\098\117\051\109\087\068\098\047\114\098\070\043\086\072\104\118\102\054\050\082\071\110\079\110\061";"\056\097\081\113\050\065\106\118\107\110\098\110\099\088\084\076","\082\112\079\074\115\109\067\061","\065\069\053\076\108\083\075\070\121\088\087\070\109\116\109\108\100\111\099\082\057\054\105\089\051\089\088\116\080\098\119\115\119\065\122\116\082\067\082\107\112\104\082\109\074\071\117\116\087\073\106\072\085\090\051\084\043\098\075\050\068\116\070\119\077\081\075\047\106\080\122\088\082\072\084\111\090\119\065\053\111\075\057\047\110\043\097\067\057\103\071\061","\072\122\048\088\106\056\068\071\116\116\088\120\066\120\068\069";"\080\072\111\120\112\116\054\070\107\114\121\069\078\043\103\051\116\052\061\061";"\107\050\076\117\066\122\105\085\122\066\083\110\104\069\057\110\098\100\061\061","\043\119\116\043\050\097\070\122\085\086\097\107\109\068\081\101\086\116\084\111\057\048\073\088\109\103\075\065\097\108\113\109\077\079\088\103\074\080\116\120\107\090\068\077\114\080\097\043\055\055\066\053\074\048\047\067\078\055\057\121\116\112\088\102\088\057\112\112\050\079\118\050\049\105\079\065\053\071\087\120\097\112\110\098\098\098\098\115\100\086\114\050\097\053\118\116\107\056\065\074\104\122\106\049\097\100\090\121\115\100\061\061";"\053\108\083\119\088\068\074\075\049\047\080\047\068\102\090\120\100\119\077\099\052\071\076\082\104\117\104\074\122\055\105\071\115\083\067\105\114\081\074\109\084\111\107\057\108\113\067\047\086\054\097\109\065\088\122\084\116\083\043\107\090\065\081\070\077\120\070\120\050\116\056\111\112\118\110\065\109\085\057\097\069\117\103\070";"\117\078\097\112\120\056\073\109\116\069\071\120\069\106\051\100\051\078\085\067\097\110\104\099\065\105\043\082\051\081\054\117\076\081\078\110\099\118\066\118\100\050\081\115\056\114\050\049\103\051\115\117\102\102\100\076\073\115\043\090\120\070\089\070\079\101\070\085\108\066\076\068\090\055\108\115\057\079\119\043\084\070\043\115\069\114\049\055\086\112\098\054\069\055\084\107\119\053\121\061";"\106\098\112\087\119\052\102\067\102\043\079\052\100\106\118\073";"\065\110\043\083\110\119\117\072","\056\072\097\115\115\085\116\101\078\081\071\087\121\072\051\056";"\047\110\089\106\097\052\113\104\069\082\105\054\077\098\121\061","\119\081\054\072\066\072\087\057\106\056\087\099\107\120\107\051\068\052\061\061";"\079\055\077\115\080\122\074\107\083\084\120\057\122\111\110\113\057\098\043\074\112\104\100\102\122\052\103\067\104\100\061\061","\107\074\103\121\106\122\068\089\116\087\107\053\117\119\074\047\117\057\075\061","\047\076\106\069\097\103\050\084\120\056\109\054\116\051\049\111\080\069\052\068\050\057\083\113\052\109\082\079\076\097\067\053\065\067\088\084\047\116\102\090\085\054\086\117\111\066\055\057\101\071\086\068\072\118\083\121\050\074\056\118\047\089\049\117\111\117\067\069\079\071\113\051\119\108\083\105\054\050\051\086\071\056\098\075\043\115\090\119\078\084\101\071\081\106\073\051\090\082\088\113\082\099\051\055\043\105\085\118\049\109\111\107\120\082\066\100\080\107\103\117\089\047\099\119\111\083\086\065\068\098\106\089\057\081\111\065\049\117\090\084","\081\102\121\076\053\055\119\055\119\116\078\081";"\112\114\083\054\078\090\111\066\107\110\111\053\116\069\087\119\043\114\097\061";"\109\078\118\069\077\078\087\070\067\108\120\054\071\084\100\113";"\104\115\065\072\103\084\047\115\111\112\051\112\086\121\115\051\057\108\075\070\047\071\071\111\065\108\057\112\083\111\089\107\115\068\047\106\081\106\118\119\050\056\065\098\085\067\103\104\055\078\073\084\105\120\083\107\100\099\043\052\079\076\085\084\051\120\082\106\104\069\097\088\057\054\090\110\070\122\049\074\071\097\075\111\084\073\116\065\051\088\043\049\114\050\047\068\076\071\118\048\065\075\056\100\107\081\119\079\089\116\109\054\097\113\078\083\118\083\116\061","\072\099\089\076\057\074\122\057\048\110\065\056\069\080\077\085","\109\072\066\051\109\057\083\043\043\119\066\109\109\114\052\099\086\117\061\061";"\081\056\071\069\109\086\069\090\075\078\090\108\054\079\050\107";"\050\077\070\052\043\043\112\061","\085\066\053\079\081\121\057\122\099\110\101\077";"\109\076\118\088\072\070\052\105\109\108\050\113\089\114\119\112";"\066\053\068\104\116\057\116\054\107\081\083\090\116\116\089\103\078\116\086\061";"\075\115\071\099\111\109\090\120\102\122\081\079\090\074\071\079\053\117\119\078\083\105\082\089\114\119\112\054\108\083\081\070\116\047\084\061","\043\057\052\050\101\084\121\061";"\114\113\105\070\102\065\080\051\087\067\051\100\068\114\077\106","\087\104\078\120\084\109\054\101\099\047\089\043\116\105\051\074","\112\066\056\106\099\120\115\097\089\053\081\072\079\077\121\068\070\047\070\106\053\056\051\053\114\122\101\052\106\084\066\106\070\109\070\068\053\112\048\107\066\104\101\067\053\108\053\055\057\087\097\057\083\081\110\057\087\068\114\099\099\118\098\108\087\052\050\086\073\052\083\110\117\118\070\043\110\070\116\082\099\080\119\116\105\117\078\061","\078\049\043\075\108\072\043\075\086\079\066\111\086\081\054\087";"\098\073\074\050\120\078\071\090\099\050\052\056\121\100\099\120\080\078\068\106\098\113\110\087\113\082\067\121\084\102\047\097\101\052\079\120\109\047\078\115\100\103\078\067\110\116\081\102\077\106\048\073\051\066\089\043\065\077\069\055\052\116\118\117\069\114\079\122\070\076\057\052";"\100\071\070\100\049\098\097\056\074\104\080\075\119\098\082\097\057\114\109\112\089\117\051\116\083\100\061\061","\072\043\087\079\098\069\121\069\068\090\107\101\106\090\048\075\043\117\061\061";"\112\048\116\098\099\077\104\068\049\120\072\116\088\052\061\061";"\073\069\043\066\117\104\110\069\084\105\048\097\102\075\078\061","\082\079\107\099\054\085\115\080\084\081\069\112\055\068\048\083\055\101\109\116\054\106\084\072\122\113\066\078\121\074\102\078\122\082\072\098\084\068\089\110\050\090\076\097\119\056\114\114\105\065\074\088\090\105\070\112\056\109\083\052\074\116\110\083\071\082\101\107\104\067\078
+local DiscordLib = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/discord%20lib.txt")()
+
+local win = DiscordLib:Window("MIALUXOR-GEMALUXOR HUB (Credits:fullplomo)")
+
+local serv = win:Server("1.", "")
+
+local btns = serv:Channel("Useful scripts")
+
+btns:Button("fly", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+DiscordLib:Notification("Notification", "Fly Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Universal Aimbot", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RobloxMasterAyla/UniversalAimbot/refs/heads/main/Aimbot2Universal.lua"))()
+DiscordLib:Notification("Notification", " Universal Aimbot Activated!", "Okay!")
+end)
+
+btns:Button("Key:nAQ0iTNjRo", function()
+        
+DiscordLib:Notification("Notification", "What?", "Nothing")
+end)
+
+btns:Seperator()
+
+btns:Button("Infinity Yield", function()
+        loadstring(game:HttpGet(('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'),true))()
+DiscordLib:Notification("Notification", "Infinity Yield Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Invisible Fe", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Gon900p/script/refs/heads/main/invisible"))()
+DiscordLib:Notification("Notification", "Invisible Fe Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Dex Explorer", function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-REAL-DEX-EXPLORER-DONT-BE-SCAMMED-41800"))()
+DiscordLib:Notification("Notification", "Dex Explorer Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Flash Back", function()
+        loadstring(game:HttpGet("https://mscripts.vercel.app/scfiles/reverse-script.lua"))()
+DiscordLib:Notification("Notification", "Flash Back Activated!", "Okay!")
+end)
+
+
+local serv = win:Server("2.", "")
+
+local btns = serv:Channel("Hubs")
+
+btns:Button("Tiger Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptBrv/HTU/refs/heads/main/HTU.md"))()
+DiscordLib:Notification("Notification", "Tiger Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Nova Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/D3lt5/ukdow/refs/heads/main/OfficialNova'))()
+DiscordLib:Notification("Notification", "Nova Hub Activated!", "Okay!")
+end)
+
+btns:Button("Key:RebordRDIB", function()
+        
+DiscordLib:Notification("Notification", "What?", "Nothing")
+end)
+
+btns:Seperator()
+
+btns:Button("Sans Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RScripter/ORION-BLUE-THEME/main/Scripthub/Sans%20hub"))()
+DiscordLib:Notification("Notification", "Sans Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Ghub V14 Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gclich/GHUBV14XZ/main/Ghub_Main_Loader.txt"))()
+DiscordLib:Notification("Notification", "Ghub V14 Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("NukeVsCity Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/NukeVsCity/TheALLHACKLoader/main/NukeLoader"))()
+DiscordLib:Notification("Notification", "NukeVsCity Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Kagu Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Kaguya11/KaguHubRework/main/KaguHub"))() 
+DiscordLib:Notification("Notification", "Kagu Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Solara Hub", function()
+        loadstring(game:HttpGet("https://paste.ee/r/VAQkh9WZ"))()
+DiscordLib:Notification("Notification", "Solara Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Ez Hub", function()
+        loadstring(game:HttpGet(('https://raw.githubusercontent.com/debug420/Ez-Industries-Launcher-Data/master/Launcher.lua'),true))()
+DiscordLib:Notification("Notification", "Ez Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Holf Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Podroka626/Scripts/main/Universal"))()
+DiscordLib:Notification("Notification", "Holf Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Script Hub V2", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Ragoon821/ScriptXHub-v2/main/ScriptXhub%20v2.1-serpent"))()
+DiscordLib:Notification("Notification", "Script Hub V2 Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("RayField Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Essinity/Rayfield-Hub/main/Script", true))()
+DiscordLib:Notification("Notification", "RayField Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Kiyoto Universal Hub", function()
+         loadstring(game:HttpGet("https://raw.githubusercontent.com/KojiArchives/KHK/refs/heads/main/KHK.md",true))()
+DiscordLib:Notification("Notification", "Kiyoto Universal Hub Activated!", "Okay!")
+end)
+
+btns:Button("Key:keyprosty", function()
+        
+DiscordLib:Notification("Notification", "What?", "Nothing")
+end)
+
+btns:Seperator()
+
+btns:Button(" Universal Hub", function()
+         loadstring(game:HttpGet("https://raw.githubusercontent.com/KojiArchives/KHK/refs/heads/main/KHK.md",true))()
+DiscordLib:Notification("Notification", "Kiyoto Universal Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button(" Ghost Hub", function()
+         loadstring(game:HttpGet('https://raw.githubusercontent.com/GhostPlayer352/Test4/main/GhostHub'))()
+DiscordLib:Notification("Notification", "Ghost Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+
+local serv = win:Server("3.", "")
+
+local btns = serv:Channel("Muscle Legends")
+
+btns:Button("Nova Hub", function()
+        loadstring(game:HttpGet("https://doitenroi.vercel.app/script/Nova_Hub_Cracked.lua"))()
+DiscordLib:Notification("Notification", "Nova Hub Activated!", "Okay!")
+end)
+
+btns:Button("Key:doitenroi", function()
+        
+DiscordLib:Notification("Notification", "if the key don't work idk lol", ".")
+end)
+
+btns:Seperator()
+
+btns:Button("Plutoniom Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/PawsThePaw/Plutonium.AA/main/Plutonium.Loader.lua", true))()
+DiscordLib:Notification("Notification", "Plutoniom Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("RnDm Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/rndmq/Serverlist/refs/heads/main/Loader"))()
+DiscordLib:Notification("Notification", " RnDm Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Speed Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
+DiscordLib:Notification("Notification", "Speed Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("NW_Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/Ceedif/Nw_Hub/refs/heads/main/Nw_Script'))()
+DiscordLib:Notification("Notification", "NW_Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+local btns = serv:Channel("BrookHaven")
+
+btns:Button("SP_Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/Brookhaven"))()
+DiscordLib:Notification("Notification", "SP_Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Brook Hub", function()
+        loadstring(game:HttpGet("https://orbitsc.net/brook"))()
+DiscordLib:Notification("Notification", "Brook Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("R1CH4RD Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/RFR-R1CH4RD/Loader/main/Salvatore.lua"))()
+DiscordLib:Notification("Notification", "R1CH4RD Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("SanderXV4.2.2 Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/kigredns/SanderXV4.2.2/refs/heads/main/NormalSS.lua'))()
+DiscordLib:Notification("Notification", "SanderXV4.2.2 Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Hyz0r Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/Hyz0r-Dev404/Hyz0/refs/heads/main/Working%25Hyz0r-Hub.md'))();
+DiscordLib:Notification("Notification", "Hyz0r Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Build A Boat")
+
+btns:Button("RIP666 Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/CasperFlyModz/discord.gg-rips/main/Loader.lua"))()
+DiscordLib:Notification("Notification", "RIP666 Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("B3BFT Hub", function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Build-A-Boat-For-Treasure-Ultimte-B3BFT-Script-28601"))()
+DiscordLib:Notification("Notification", "B3BFT Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Lexus Hub", function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/2NjKRALJ", true))()
+DiscordLib:Notification("Notification", "Lexus Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Weshky Baft Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/suntisalts/BetaTesting/refs/heads/main/AutofarmV1.lua'))()
+DiscordLib:Notification("Notification", "Weshky Baft Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Plutoniom Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/PawsThePaw/Plutonium.AA/main/Plutonium.Loader.lua", true))()
+DiscordLib:Notification("Notification", "Plutoniom Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Snow LOVER BABFT Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/CryptPerson/BuildingBoat/refs/heads/main/GUI.lua"))()
+DiscordLib:Notification("Notification", "Snow LOVER BABFT Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Dead Rails")
+
+btns:Button("TBAO Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/thaibao/refs/heads/main/TbaoHubDeadRails"))()
+DiscordLib:Notification("Notification", "TBAO Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Marco8642 Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Marco8642/science/refs/heads/ok/dead%20rails"))()
+DiscordLib:Notification("Notification", "Marco8642 Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("FIRE Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/InfernusScripts/Null-Fire/main/Loader"))()
+DiscordLib:Notification("Notification", "FIRE Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Strelizia Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/0vma/Strelizia/refs/heads/main/Standalone/DeadRails.lua', true))()
+DiscordLib:Notification("Notification", "Strelizia Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("gumanba Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gumanba/Scripts/main/DeadRails"))()
+DiscordLib:Notification("Notification", "gumanba Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Rivals")
+
+btns:Button("Duck Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/HexFG/duckhub/refs/heads/main/loader.lua'))()
+DiscordLib:Notification("Notification", "Duck Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("SOLIXHUB Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/debunked69/Solixreworkkeysystem/refs/heads/main/solix%20new%20keyui.lua"))() 
+DiscordLib:Notification("Notification", "SOLIXHUB Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("VaxKs Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/VaxKs/gfe/main/Rivalsss.lua"))() 
+DiscordLib:Notification("Notification", "VaxKs Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Prison Life")
+
+btns:Button("Weshky Hub", function()
+        loadstring(game:HttpGet(('https://raw.githubusercontent.com/WeshkyPL/WehskyHub/refs/heads/main/WeshkyHubV1.12.lua'),true))()
+DiscordLib:Notification("Notification", "Weshky Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Vassilios Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/0xDC143CAA/Solar/refs/heads/main/127534553458356.lua"))()
+DiscordLib:Notification("Notification", "Vassilios Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Tbao Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/thaibao/main/TbaohubPrisonLife"))()
+DiscordLib:Notification("Notification", "Tbao Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Corgi Ware Hub", function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/DuWbmerF"))() 
+DiscordLib:Notification("Notification", "Corgi Ware Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("TigerAdmin Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/dalloc2/Roblox/main/TigerAdmin.lua"))()
+DiscordLib:Notification("Notification", "TigerAdmin Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Natural Disaster")
+
+btns:Button("Six Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/ySixxNz/Natural-Desastre/Six-Hub/NaturalDisaster'))()
+DiscordLib:Notification("Notification", "Six Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("SubZero Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/AgentX771/SubZero/main/SubZero.lua", true))()
+DiscordLib:Notification("Notification", "SubZero Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Zephyr Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Unknownlodfc/Zephyr/main/Zephyr%20%7C%20Natural%20Disaster%20Survival"))()
+DiscordLib:Notification("Notification", "Zephyr Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Zombie Attack")
+
+btns:Button("Imperium Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Imperium-Development/Imperium/main/Imperium.lua"))()
+DiscordLib:Notification("Notification", "Imperium Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+local btns = serv:Channel("Pressure")
+
+btns:Button("Null Fire Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercortent.com/InfernusScripts/Fire-Hub/main/Loader"))()
+DiscordLib:Notification("Notification", "Null Fire Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Neuron XYZ Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/3345-c-a-t-s-u-s/Neuron-XYZ/refs/heads/main/Source/Pressure.lua"))()
+DiscordLib:Notification("Notification", "Neuron XYZ Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("BEDOL Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/3345-c-a-t-s-u-s/New-C4-Remote.lua/main/pressure_kuy.lua"))()
+DiscordLib:Notification("Notification", "BEDOL Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("kncrypt Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/3345-c-a-t-s-u-s/Neuron-XYZ/refs/heads/main/Source/Pressure.lua"))()    
+DiscordLib:Notification("Notification", "kncrypt hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Unknow Script", function()
+        loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946e6047b0c6e0ad51f84.lua"))()
+DiscordLib:Notification("Notification", "Unknow Script Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("MSPaint Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/FFJ1/Roblox-Exploits/main/scripts/Loader.lua"))()
+DiscordLib:Notification("Notification", "MSPaint Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("DA HOOD")
+
+btns:Button("Azur Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Actyrn/Scripts/main/AzureModded"))()
+DiscordLib:Notification("Notification", "Azur Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("MANGO X Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/rogelioajax/lua/main/MangoHub', true))();
+DiscordLib:Notification("Notification", "MANGO X Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("V.G Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/1201for/V.G-Hub/main/V.Ghub'))()
+DiscordLib:Notification("Notification", "V.G Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Lucky Block")
+
+btns:Button("Harlen Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/harlenscripts/HarlenHub/main/HarlenScripts"))()
+DiscordLib:Notification("Notification", "Harlen Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Owenn Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/9ur98wh8fjkerbngo12ikontgg/fortnite/main/locky%20blocks12nyhubf87yh189j98ihuygrweyugf12ou8r", true))()
+DiscordLib:Notification("Notification", "Owenn Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Sky Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/arlists/Sky-Hub/main/Main", true))()
+DiscordLib:Notification("Notification", "Sky Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("TheBloxGuyYt Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/artas01/artas01/main/lucky'))()
+DiscordLib:Notification("Notification", "TheBloxGuyYt Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Blue Lock Rivals")
+
+btns:Button("Ather Hub", function()
+        loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/2529a5f9dfddd5523ca4e22f21cceffa.lua"))()
+DiscordLib:Notification("Notification", "Ather Hub Activated!", "Okay!")
+end)
+
+btns:Button("Sorry! Key has time limit!", function()
+        
+DiscordLib:Notification("Notification", "What!", "Nothing")
+end)
+
+local btns = serv:Channel("Basketball Zero")
+
+btns:Button("Resonance Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/roscripts749/loader/refs/heads/main/loader"))()
+DiscordLib:Notification("Notification", "Resonance Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("DOORS")
+
+btns:Button("KODBOL Hub", function()
+        loadstring(game:HttpGet(('https://pastefy.app/awczkDwJ/raw'),true))()
+DiscordLib:Notification("Notification", "KODBOL Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("BlackKing Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/KINGHUB01/BlackKing-obf/main/Doors%20Blackking%20And%20BobHub"))()
+DiscordLib:Notification("Notification", "BlackKing Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("mspaintV2 Hub", function()
+        loadstring(game:HttpGet"https://raw.githubusercontent.com/notpoiu/mspaint/main/main.lua")
+DiscordLib:Notification("Notification", "mspaintV2 Hub Activated!", "Okay!")
+end)
+
+local btns = serv:Channel("Pet Sim 99")
+
+btns:Button("Project WD Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/SlamminPig/6FootScripts/main/Scripts/PetSimulator99.lua'))();
+DiscordLib:Notification("Notification", "Project WD Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("PET SIM 99 Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/SlamminPig/6FootScripts/main/Scripts/PetSimulator99.lua'))();
+DiscordLib:Notification("Notification", "PET SIM 99 Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Reaper Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/AyoReaper/Reaper-Hub/refs/heads/main/loader.lua"))()
+DiscordLib:Notification("Notification", "Reaper Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("LDS Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/SenhorLDS/ProjectLDSHUB/main/OfficialScript'))()
+DiscordLib:Notification("Notification", "LDS Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+local btns = serv:Channel("Ninja Legends")
+
+btns:Button("ManaHub Hub", function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/LSndiFye",true))()
+DiscordLib:Notification("Notification", "ManaHub Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Apple Hub", function()
+        loadstring(game:HttpGet(("https://raw.githubusercontent.com/AppleScript001/Ninjas_Legends/main/README.md"),true))()
+DiscordLib:Notification("Notification", "Apple Hub Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Desire Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/welomenchaina/Loader/refs/heads/main/ScriptLoader",true))()
+DiscordLib:Notification("Notification", "Desire Hub Activated!", "Okay!")
+end)
+
+btns:Button("Sorry! Key has time limit!", function()
+        
+DiscordLib:Notification("Notification", "What?", "Nothing")
+end)
+
+btns:Seperator()
+
+btns:Button("Easy2Use Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Hamza3270308/Ninjalegends/refs/heads/main/Easyeuse.lua"))()
+DiscordLib:Notification("Notification", "Easy2Use Hub Activated!", "Okay!")
+end)
+
+btns:Button("Sorry! Key has time limit!", function()
+        
+DiscordLib:Notification("Notification", "What?", "Nothing")
+end)
+
+btns:Seperator()
+
+btns:Button("Hamza Hub", function()
+        loadstring(game:HttpGet(("https://raw.githubusercontent.com/Hamza3270308/Ninjalegends/refs/heads/main/Ninjascript.lua"),true))()
+DiscordLib:Notification("Notification", "Hamza Hub Activated!", "Okay!")
+end)
+
+btns:Button("Sorry! Key has time limit!", function()
+        
+DiscordLib:Notification("Notification", "What?", "Nothing")
+end)
+
+local btns = serv:Channel("4.")
+
+local btns = serv:Channel("Grow a Garden")
+
+btns:Button("Koronis Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/nf-36/Koronis/refs/heads/main/Scripts/Loader.lua"))()
+DiscordLib:Notification("Notification", "Koronis Hub Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("XE Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-xyzs/GAG/refs/heads/main/GrowAGardenXE"))()
+DiscordLib:Notification("Notification", "XE Hub Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Nat Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))();
+DiscordLib:Notification("Notification", "Nat Hub Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Moondiety Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/m00ndiety/Grow-a-garden/refs/heads/main/Grow-A-fkin-Garden.txt'))()
+DiscordLib:Notification("Notification", "Moondiety Hub Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Spawner Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Jayyyy14731/Silasthebacon/refs/heads/main/b064e21d36f54b6fcf287eda595b98b3.txt"))()
+DiscordLib:Notification("Notification", "Spawner Hub Hub Activated!", "Okay!")
+end)
+
+btns:Button("Sorry! Key has time limit!", function()
+        
+DiscordLib:Notification("Notification", "What?", "Nothing")
+end)
+
+btns:Seperator()
+
+btns:Button("Lunor Hub", function()
+        loadstring(game:HttpGet('https://lunor.dev/loader'))()
+DiscordLib:Notification("Notification", "Lunor Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Tora Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/gumanba/Scripts/main/GrowaGarden"))()
+DiscordLib:Notification("Notification", "Tora Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Moma Hub", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/n3xkxp3rl/Moma-Hub/refs/heads/main/GrowAGarden.lua"))()
+DiscordLib:Notification("Notification", "Moma Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
+
+btns:Button("Space Hub", function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/ago106/SpaceHub/refs/heads/main/Multi'))()
+DiscordLib:Notification("Notification", "Space Hub Activated!", "Okay!")
+end)
+
+btns:Seperator()
