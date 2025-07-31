@@ -1,1 +1,5 @@
-# my-first-scrip-lua
+CREATED BY GGSPAE / #Fullplomo
+
+LAST UPDATE THE 31/07/2025
+
+LUA CODE SCRIPT.
