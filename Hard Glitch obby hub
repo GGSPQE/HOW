@@ -1,1 +1,1 @@
-loadstring(game:HttpGet('https://raw.githubusercontent.com/GGSPQE/HOW/refs/heads/%2C.%2C.%2C.%2C/Hard%20Glitch%20obby', true))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/GGSPQE/HOW/refs/heads/%2C.%2C.%2C.%2C/Hard%20Glitch%20obby"))()
