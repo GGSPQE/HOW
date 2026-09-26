@@ -1,0 +1,3276 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog, colorchooser
+import threading
+import time
+import ctypes
+from ctypes import wintypes
+import json
+import os
+import random
+import subprocess
+import shutil
+import queue
+import webbrowser
+import keyboard  # Requiere: pip install keyboard
+import base64
+import urllib.request
+
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+except ImportError:
+    DND_FILES = None
+    TkinterDnD = None
+
+# Intentar importar win32com para manipular el Firewall mediante COM nativo
+try:
+    import win32com.client
+except ImportError:
+    win32com = None
+
+# Archivo de configuración local
+CONFIG_FILE = "ggspqe_config.json"
+perfil_activo = "Predeterminado"
+perfiles_config = {}
+intro_animacion_activa = True
+roblox_profile_username = ""
+app_accent_color = "#00ffcc"
+app_theme_name = "GGSPQE"
+app_ui_scale = 1.0
+app_theme_palette = {}
+perfil_colores = {}
+orden_secciones = ["Roblox", "Juegos", "Texturas", "Recorder", "Preferencias"]
+recorder_macros = {}
+sonidos_activos = True
+avisos_recorder_activos = True
+
+APP_THEMES = {
+    "GGSPQE": {
+        "bg": "#121212", "top": "#1e1e1e", "sidebar": "#181818",
+        "panel": "#222222", "panel_alt": "#333333", "input": "#2d2d2d",
+        "text": "#ffffff", "muted": "#aaaaaa", "accent": "#00ffcc",
+        "accent_light": "#a8cbb8", "button": "#1f4037", "button_active": "#2f5f52",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Carbon Lime": {
+        "bg": "#111412", "top": "#1b211d", "sidebar": "#151a17",
+        "panel": "#202923", "panel_alt": "#303b33", "input": "#29332c",
+        "text": "#f0f5f0", "muted": "#a8b5aa", "accent": "#c2f970",
+        "accent_light": "#d8efaa", "button": "#344a21", "button_active": "#49652d",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Slate Coral": {
+        "bg": "#151719", "top": "#202326", "sidebar": "#191c1f",
+        "panel": "#282c2f", "panel_alt": "#393e42", "input": "#32373a",
+        "text": "#f3f4f4", "muted": "#aeb4b7", "accent": "#ff9671",
+        "accent_light": "#ffd0c2", "button": "#57362d", "button_active": "#784b3e",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Paper": {
+        "bg": "#eef1ed", "top": "#ffffff", "sidebar": "#e2e8e2",
+        "panel": "#f6f8f6", "panel_alt": "#d9e0da", "input": "#ffffff",
+        "text": "#18201b", "muted": "#59615d", "accent": "#087f5b",
+        "accent_light": "#176b4b", "button": "#d2e8dd", "button_active": "#baddc9",
+        "danger": "#f1d8d5", "danger_active": "#e8c1bc"
+    }
+}
+
+# Variables de estado
+anti_afk_activo = False
+autoclicker_activo = False
+lag_switch_activo = False
+menu_juegos_desplegado = False
+ejecutando_shuffle = False  # Bandera de control para evitar bucle en Shuffle Reload
+shuffle_stop = None
+fast_gun_swap_activo = False
+fast_gun_swap_stop = None
+fast_gun_swap_generation = 0
+auto_train_activo = False
+auto_train_stop = None
+auto_train_generation = 0
+lag_switch_stop = threading.Event()
+
+hotkeys_registradas = []
+eventos_hotkey = queue.SimpleQueue()
+hotkeys_mantenidas = set()
+captura_hotkey_activa = False
+captura_hotkey_hook = None
+captura_hotkey_entry = None
+captura_hotkey_boton = None
+captura_teclas_pulsadas = set()
+captura_modificadores = set()
+captura_modificador_suelto = None
+captura_timeout_id = None
+
+# Mapas de Virtual-Key (VK) y Hardware Scan Codes para Win32 API
+VK_MAP = {
+    '1': (0x31, 0x02),
+    '2': (0x32, 0x03),
+    '3': (0x33, 0x04),
+    '4': (0x34, 0x05),
+    'r': (0x52, 0x13)
+}
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ("wVk", wintypes.WORD),
+        ("wScan", wintypes.WORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_size_t)
+    ]
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_size_t)
+    ]
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", wintypes.DWORD),
+        ("wParamL", wintypes.WORD),
+        ("wParamH", wintypes.WORD)
+    ]
+
+class INPUTUNION(ctypes.Union):
+    _fields_ = [
+        ("ki", KEYBDINPUT),
+        ("mi", MOUSEINPUT),
+        ("hi", HARDWAREINPUT)
+    ]
+
+class INPUT(ctypes.Structure):
+    _anonymous_ = ("data",)
+    _fields_ = [("type", wintypes.DWORD), ("data", INPUTUNION)]
+
+class RECORDER_POINT(ctypes.Structure):
+    _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
+
+recorder_lock = threading.Lock()
+recorder_events = []
+recorder_mode = "idle"
+recorder_started_at = None
+recorder_keyboard_hook = None
+recorder_stop = None
+recorder_playback_stop = None
+recorder_keys_down = set()
+
+# --- FUNCIONES DE SEGURIDAD Y PRIVILEGIOS ---
+
+def es_administrador():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        return False
+
+def obtener_ruta_roblox():
+    try:
+        comando = (
+            "Get-CimInstance Win32_Process -Filter \"Name='RobloxPlayerBeta.exe' "
+            "OR Name='WindowsUniversal.exe'\" | "
+            "Select-Object -ExpandProperty ExecutablePath"
+        )
+        resultado = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", comando],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if resultado.returncode == 0:
+            for ruta in resultado.stdout.splitlines():
+                ruta = ruta.strip()
+                if ruta and os.path.isfile(ruta):
+                    return ruta
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    local_appdata = os.environ.get("LOCALAPPDATA", "")
+    ruta_default = os.path.join(local_appdata, "Roblox", "Versions")
+    if os.path.exists(ruta_default):
+        for root_dir, dirs, files in os.walk(ruta_default):
+            if "RobloxPlayerBeta.exe" in files:
+                return os.path.join(root_dir, "RobloxPlayerBeta.exe")
+    return ""
+
+def obtener_carpeta_texturas_roblox():
+    exe_roblox = obtener_ruta_roblox()
+    if exe_roblox:
+        dir_version = os.path.dirname(exe_roblox)
+        dir_texturas = os.path.join(dir_version, "PlatformContent", "pc", "textures")
+        if os.path.exists(dir_texturas):
+            return dir_texturas
+    return ""
+
+def consultar_perfil_roblox(nombre_usuario):
+    def worker():
+        try:
+            solicitud_usuario = urllib.request.Request(
+                "https://users.roblox.com/v1/usernames/users",
+                data=json.dumps({
+                    "usernames": [nombre_usuario],
+                    "excludeBannedUsers": True
+                }).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "GGSPQE-Roblox-Utility/1.0"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(solicitud_usuario, timeout=10) as respuesta:
+                resultado_usuario = json.loads(respuesta.read().decode("utf-8"))
+            usuarios = resultado_usuario.get("data", [])
+            if not usuarios:
+                raise ValueError("No se encontró ese usuario de Roblox.")
+
+            usuario = usuarios[0]
+            id_usuario = usuario["id"]
+            nombre_canonico = usuario.get("name", nombre_usuario)
+            url_miniatura = (
+                "https://thumbnails.roblox.com/v1/users/avatar-headshot"
+                f"?userIds={id_usuario}&size=48x48&format=Png&isCircular=false"
+            )
+            with urllib.request.urlopen(url_miniatura, timeout=10) as respuesta:
+                resultado_miniatura = json.loads(respuesta.read().decode("utf-8"))
+            url_imagen = resultado_miniatura["data"][0]["imageUrl"]
+            with urllib.request.urlopen(url_imagen, timeout=10) as respuesta:
+                imagen = respuesta.read()
+            root.after(0, lambda: mostrar_perfil_roblox(nombre_canonico, imagen))
+        except Exception as error:
+            root.after(0, lambda error=error: lbl_estado_perfil_roblox.config(
+                text=f"No se pudo cargar el perfil: {error}", fg="#ffcc00"
+            ))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def cargar_perfil_roblox():
+    global roblox_profile_username
+    nombre_usuario = entry_roblox_username.get().strip()
+    if not nombre_usuario:
+        messagebox.showwarning("Perfil de Roblox", "Escribe tu nombre de usuario de Roblox.")
+        return
+
+    roblox_profile_username = nombre_usuario
+    guardar_configuracion()
+    lbl_estado_perfil_roblox.config(text="Buscando perfil público...", fg="#aaaaaa")
+    consultar_perfil_roblox(nombre_usuario)
+
+def mostrar_perfil_roblox(nombre_usuario, datos_imagen):
+    try:
+        imagen = tk.PhotoImage(data=base64.b64encode(datos_imagen).decode("ascii"))
+    except tk.TclError:
+        lbl_estado_perfil_roblox.config(text="No se pudo mostrar la foto del perfil.", fg="#ffcc00")
+        return
+
+    lbl_foto_perfil.config(image=imagen, text="", width=0, height=0)
+    lbl_foto_perfil.image = imagen
+    lbl_saludo_perfil.config(text=f"Hola {nombre_usuario}, ¿qué tal?")
+    lbl_estado_perfil_roblox.config(text=f"Perfil cargado: {nombre_usuario}", fg="#00cc88")
+
+# --- FUNCIONES NATIVAS DE WINDOWS Y SISTEMA ---
+
+def obtener_ventana_activa():
+    try:
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        longitud = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+        buffer = ctypes.create_unicode_buffer(longitud + 1)
+        ctypes.windll.user32.GetWindowTextW(hwnd, buffer, longitud + 1)
+        return buffer.value
+    except Exception:
+        return ""
+
+def esta_en_roblox():
+    ventana_actual = obtener_ventana_activa().lower()
+    return "roblox" in ventana_actual and "ggspqe" not in ventana_actual
+
+def presionar_tecla_nativo(tecla_char):
+    """Envía un par de eventos de teclado con scan codes explícitos."""
+    user32 = ctypes.windll.user32
+    char_key = str(tecla_char).lower()
+    
+    if char_key in VK_MAP:
+        vk, scan_code = VK_MAP[char_key]
+    else:
+        vk = ord(char_key.upper())
+        scan_code = user32.MapVirtualKeyW(vk, 0)
+
+    eventos = (INPUT * 2)()
+    eventos[0].type = 1
+    eventos[0].ki = KEYBDINPUT(0, scan_code, 0x0008, 0, 0)
+    eventos[1].type = 1
+    eventos[1].ki = KEYBDINPUT(0, scan_code, 0x000A, 0, 0)
+
+    user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int)
+    user32.SendInput.restype = wintypes.UINT
+    enviados = user32.SendInput(2, eventos, ctypes.sizeof(INPUT))
+    if enviados != 2:
+        user32.keybd_event(vk, scan_code, 0, 0)
+        time.sleep(0.015)
+        user32.keybd_event(vk, scan_code, 0x0002, 0)
+
+# --- GESTOR DE TEXTURAS (FPS BOOST) ---
+
+def eliminar_texturas_roblox():
+    def worker():
+        dir_texturas = obtener_carpeta_texturas_roblox()
+        if not dir_texturas:
+            messagebox.showerror("Error", "No se encontró la carpeta de instalación de Roblox.")
+            return
+        
+        try:
+            dir_backup = dir_texturas + "_BACKUP"
+            if not os.path.exists(dir_backup):
+                shutil.copytree(dir_texturas, dir_backup)
+            
+            carpetas_objetivo = ["subsurface", "sky", "terrain"]
+            for item in os.listdir(dir_texturas):
+                ruta_item = os.path.join(dir_texturas, item)
+                if os.path.isdir(ruta_item) and item.lower() in carpetas_objetivo:
+                    for sub_root, sub_dirs, files in os.walk(ruta_item):
+                        for f in files:
+                            try:
+                                os.remove(os.path.join(sub_root, f))
+                            except Exception:
+                                pass
+            messagebox.showinfo("Éxito", "Texturas optimizadas correctamente para Boost de FPS.")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudieron modificar las texturas: {e}")
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def restaurar_texturas_roblox():
+    def worker():
+        dir_texturas = obtener_carpeta_texturas_roblox()
+        if not dir_texturas:
+            messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+            return
+        
+        dir_backup = dir_texturas + "_BACKUP"
+        if not os.path.exists(dir_backup):
+            messagebox.showwarning("Advertencia", "No existe una copia de respaldo guardada para restaurar.")
+            return
+
+        try:
+            shutil.rmtree(dir_texturas)
+            shutil.copytree(dir_backup, dir_texturas)
+            messagebox.showinfo("Éxito", "Texturas originales restauradas correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Fallo al restaurar texturas: {e}")
+
+    threading.Thread(target=worker, daemon=True).start()
+
+TEXTURE_CATEGORIES = {
+    "Cielo": (os.path.join("content", "sky"), {".dds", ".jpg", ".png"}),
+    "Punteros": (os.path.join("content", "textures", "Cursors"), {".png"}),
+    "Agua": (os.path.join("PlatformContent", "pc", "textures", "water"), {".dds"}),
+    "Interfaz": (os.path.join("PlatformContent", "pc", "textures", "ui"), {".png"})
+}
+
+def manejar_drop_texturas(evento):
+    try:
+        rutas = root.tk.splitlist(evento.data)
+    except tk.TclError:
+        messagebox.showerror("Archivos no válidos", "No se pudieron leer los elementos soltados.")
+        return
+    if len(rutas) == 1 and os.path.isdir(rutas[0]):
+        instalar_paquete_texturas(carpeta_paquete=rutas[0])
+    elif rutas:
+        instalar_paquete_texturas(archivos_sueltos=rutas)
+
+def seleccionar_archivos_texturas():
+    categoria = combo_categoria_textura.get().strip()
+    if categoria not in TEXTURE_CATEGORIES:
+        messagebox.showwarning("Texturas", "Selecciona una categoría.")
+        return
+    _, extensiones = TEXTURE_CATEGORIES[categoria]
+    patron = " ".join(f"*{extension}" for extension in sorted(extensiones))
+    archivos = filedialog.askopenfilenames(
+        parent=root,
+        title=f"Seleccionar archivos para {categoria}",
+        filetypes=[("Texturas compatibles", patron), ("Todos los archivos", "*.*")]
+    )
+    if archivos:
+        instalar_paquete_texturas(archivos_sueltos=archivos)
+
+def elegir_textura_destino(dir_categoria, dir_backup, extension, nombre_origen):
+    candidatos = {}
+    for raiz in (dir_categoria, dir_backup):
+        if not os.path.isdir(raiz):
+            continue
+        for carpeta_actual, subcarpetas, nombres in os.walk(raiz, followlinks=False):
+            subcarpetas[:] = [
+                nombre for nombre in subcarpetas
+                if not os.path.islink(os.path.join(carpeta_actual, nombre))
+            ]
+            for nombre in nombres:
+                ruta = os.path.join(carpeta_actual, nombre)
+                if os.path.islink(ruta) or os.path.splitext(nombre)[1].lower() != extension:
+                    continue
+                relativa = os.path.relpath(ruta, raiz)
+                candidatos.setdefault(os.path.normcase(relativa), relativa)
+
+    opciones = sorted(candidatos.values(), key=str.casefold)
+    if not opciones:
+        return None
+
+    dialogo = tk.Toplevel(root)
+    dialogo.title("Elegir textura a reemplazar")
+    dialogo.transient(root)
+    dialogo.grab_set()
+    tk.Label(
+        dialogo,
+        text=f"No hay coincidencia para {nombre_origen}. Selecciona el destino:"
+    ).pack(anchor="w", padx=10, pady=(10, 4))
+
+    marco_lista = tk.Frame(dialogo)
+    marco_lista.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
+    lista = tk.Listbox(marco_lista, width=58, height=min(18, max(6, len(opciones))), exportselection=False)
+    barra = tk.Scrollbar(marco_lista, orient=tk.VERTICAL, command=lista.yview)
+    lista.configure(yscrollcommand=barra.set)
+    lista.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    barra.pack(side=tk.RIGHT, fill=tk.Y)
+    for opcion in opciones:
+        lista.insert(tk.END, opcion)
+    lista.selection_set(0)
+
+    seleccion = {"ruta": None}
+
+    def confirmar(event=None):
+        indices = lista.curselection()
+        if indices:
+            seleccion["ruta"] = opciones[indices[0]]
+            dialogo.destroy()
+
+    def cancelar():
+        dialogo.destroy()
+
+    marco_botones = tk.Frame(dialogo)
+    marco_botones.pack(fill=tk.X, padx=10, pady=(4, 10))
+    tk.Button(marco_botones, text="Cancelar", command=cancelar).pack(side=tk.RIGHT, padx=(4, 0))
+    tk.Button(marco_botones, text="Reemplazar", command=confirmar).pack(side=tk.RIGHT)
+    lista.bind("<Double-Button-1>", confirmar)
+    dialogo.bind("<Return>", confirmar)
+    dialogo.bind("<Escape>", lambda event: cancelar())
+    dialogo.protocol("WM_DELETE_WINDOW", cancelar)
+    lista.focus_set()
+    root.wait_window(dialogo)
+    return seleccion["ruta"]
+
+def reiniciar_roblox(exe_roblox):
+    try:
+        resultado = subprocess.run(
+            ["taskkill", "/F", "/IM", os.path.basename(exe_roblox)],
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        if resultado.returncode != 0:
+            detalle = resultado.stderr.strip() or resultado.stdout.strip()
+            raise OSError(detalle or "No se pudo cerrar Roblox.")
+        if not webbrowser.open("https://www.roblox.com/home", new=2):
+            raise OSError("No se pudo abrir la página oficial de Roblox.")
+    except Exception as error:
+        root.after(0, lambda error=error: messagebox.showerror(
+            "No se pudo reiniciar Roblox",
+            f"Las texturas se instalaron, pero no se pudo abrir Roblox.com. Abre Roblox manualmente.\n{error}"
+        ))
+
+def ofrecer_reinicio_roblox(exe_roblox, categoria, cantidad):
+    nombre_ejecutable = os.path.basename(exe_roblox)
+    try:
+        procesos = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {nombre_ejecutable}", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        roblox_abierto = nombre_ejecutable.lower() in procesos.stdout.lower()
+    except (OSError, subprocess.SubprocessError):
+        roblox_abierto = False
+
+    if not roblox_abierto:
+        messagebox.showinfo(
+            "Texturas instaladas",
+            f"Se instalaron {cantidad} archivos de {categoria}. Abre Roblox para aplicar los cambios."
+        )
+        return
+
+    if messagebox.askyesno(
+        "Reiniciar Roblox",
+        f"Se instalaron {cantidad} archivos de {categoria}. Roblox se cerrará y se abrirá Roblox.com. "
+        "Pulsa Jugar en la página para iniciar con una autenticación nueva. ¿Continuar?"
+    ):
+        threading.Thread(target=reiniciar_roblox, args=(exe_roblox,), daemon=True).start()
+
+def instalar_paquete_texturas(carpeta_paquete=None, archivos_sueltos=None):
+    categoria = combo_categoria_textura.get().strip()
+    if categoria not in TEXTURE_CATEGORIES:
+        messagebox.showwarning("Texturas", "Selecciona una categoría.")
+        return
+
+    if carpeta_paquete is None and archivos_sueltos is None:
+        carpeta_paquete = filedialog.askdirectory(
+            parent=root,
+            title=f"Seleccionar texturas personalizadas: {categoria}"
+        )
+        if not carpeta_paquete:
+            return
+
+    exe_roblox = obtener_ruta_roblox()
+    if not exe_roblox:
+        messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+        return
+
+    directorio_version = os.path.dirname(exe_roblox)
+    ruta_relativa_categoria, extensiones_textura = TEXTURE_CATEGORIES[categoria]
+    dir_categoria = os.path.join(directorio_version, ruta_relativa_categoria)
+    dir_backup = dir_categoria + "_BACKUP"
+    raiz_texturas = os.path.normcase(os.path.realpath(dir_categoria))
+    raiz_backup = os.path.normcase(os.path.realpath(dir_backup))
+    raiz_instalacion = os.path.normcase(os.path.realpath(directorio_version))
+    archivos_paquete = []
+    reemplazos = []
+    if archivos_sueltos is None:
+        raiz_paquete = os.path.normcase(os.path.realpath(carpeta_paquete))
+        try:
+            raiz_compartida = os.path.commonpath((raiz_paquete, raiz_instalacion))
+        except ValueError:
+            raiz_compartida = ""
+        if raiz_compartida in (raiz_paquete, raiz_instalacion):
+            messagebox.showerror("Carpeta no válida", "El paquete debe estar fuera de la carpeta de Roblox.")
+            return
+
+        for carpeta_actual, subcarpetas, nombres in os.walk(raiz_paquete, followlinks=False):
+            subcarpetas[:] = [
+                nombre for nombre in subcarpetas
+                if not os.path.islink(os.path.join(carpeta_actual, nombre))
+            ]
+            for nombre_archivo in nombres:
+                origen = os.path.join(carpeta_actual, nombre_archivo)
+                if os.path.islink(origen):
+                    continue
+                archivos_paquete.append((origen, os.path.relpath(origen, raiz_paquete)))
+    else:
+        for origen in archivos_sueltos:
+            origen = os.path.normpath(origen)
+            if os.path.isdir(origen):
+                for carpeta_actual, subcarpetas, nombres in os.walk(origen, followlinks=False):
+                    subcarpetas[:] = [
+                        nombre for nombre in subcarpetas
+                        if not os.path.islink(os.path.join(carpeta_actual, nombre))
+                    ]
+                    for nombre_archivo in nombres:
+                        ruta_origen = os.path.join(carpeta_actual, nombre_archivo)
+                        if not os.path.islink(ruta_origen):
+                            archivos_paquete.append((ruta_origen, os.path.relpath(ruta_origen, origen)))
+            elif os.path.isfile(origen) and not os.path.islink(origen):
+                archivos_paquete.append((origen, os.path.basename(origen)))
+
+    for origen, ruta_relativa in archivos_paquete:
+        if os.path.splitext(origen)[1].lower() not in extensiones_textura:
+            continue
+        try:
+            raiz_origen = os.path.normcase(os.path.realpath(origen))
+            if os.path.commonpath((raiz_origen, raiz_instalacion)) == raiz_instalacion:
+                continue
+        except ValueError:
+            pass
+        destino = os.path.join(raiz_texturas, ruta_relativa)
+        original = os.path.join(raiz_backup, ruta_relativa)
+        existe_en_instalacion = os.path.isfile(destino) and not os.path.islink(destino)
+        existe_en_respaldo = os.path.isfile(original) and not os.path.islink(original)
+        if not existe_en_instalacion and not existe_en_respaldo:
+            if archivos_sueltos is None:
+                continue
+            ruta_destino = elegir_textura_destino(
+                dir_categoria,
+                dir_backup,
+                os.path.splitext(origen)[1].lower(),
+                os.path.basename(origen)
+            )
+            if ruta_destino is None:
+                continue
+            destino = os.path.join(raiz_texturas, ruta_destino)
+        if os.path.commonpath((raiz_texturas, os.path.normcase(os.path.realpath(destino)))) != raiz_texturas:
+            continue
+        reemplazos.append((origen, destino))
+
+    if not reemplazos:
+        messagebox.showwarning(
+            "Sin coincidencias",
+            "No se encontraron archivos de textura con la misma ruta y nombre en Roblox."
+        )
+        return
+
+    if not messagebox.askyesno(
+        "Confirmar instalación",
+        f"Categoría: {categoria}\nSe reemplazarán {len(reemplazos)} archivos coincidentes.\n"
+        f"Se conservará una copia original en:\n{dir_backup}\n\n¿Continuar?"
+    ):
+        return
+
+    def worker():
+        try:
+            if os.path.exists(dir_backup) and not os.path.isdir(dir_backup):
+                raise OSError("La ruta de respaldo existe, pero no es una carpeta.")
+            if not os.path.exists(dir_backup):
+                if not os.path.isdir(dir_categoria):
+                    raise OSError("La carpeta original de esta categoría no existe para crear el respaldo.")
+                shutil.copytree(dir_categoria, dir_backup)
+
+            for origen, destino in reemplazos:
+                os.makedirs(os.path.dirname(destino), exist_ok=True)
+                shutil.copy2(origen, destino)
+
+            root.after(0, lambda: ofrecer_reinicio_roblox(
+                exe_roblox, categoria, len(reemplazos)
+            ))
+        except Exception as error:
+            root.after(0, lambda error=error: messagebox.showerror(
+                "Error al instalar texturas",
+                f"No se pudo completar la instalación. Si hubo cambios parciales, restaura esta categoría.\n{error}"
+            ))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def restaurar_categoria_texturas():
+    categoria = combo_categoria_textura.get().strip()
+    if categoria not in TEXTURE_CATEGORIES:
+        messagebox.showwarning("Texturas", "Selecciona una categoría.")
+        return
+
+    exe_roblox = obtener_ruta_roblox()
+    if not exe_roblox:
+        messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+        return
+
+    ruta_relativa_categoria, _ = TEXTURE_CATEGORIES[categoria]
+    dir_categoria = os.path.join(os.path.dirname(exe_roblox), ruta_relativa_categoria)
+    dir_backup = dir_categoria + "_BACKUP"
+    if not os.path.isdir(dir_backup):
+        messagebox.showwarning("Respaldo no encontrado", f"No hay respaldo propio para {categoria}.")
+        return
+
+    if not messagebox.askyesno("Restaurar categoría", f"¿Restaurar las texturas originales de {categoria}?"):
+        return
+
+    def worker():
+        try:
+            if os.path.exists(dir_categoria):
+                shutil.rmtree(dir_categoria)
+            shutil.copytree(dir_backup, dir_categoria)
+            root.after(0, lambda: messagebox.showinfo("Restauración completa", f"Se restauró {categoria}."))
+        except Exception as error:
+            root.after(0, lambda error=error: messagebox.showerror("Error al restaurar", str(error)))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def eliminar_agua_roblox():
+    def worker():
+        dir_texturas = obtener_carpeta_texturas_roblox()
+        if not dir_texturas:
+            messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+            return
+
+        ruta_agua = os.path.join(dir_texturas, "water")
+        if os.path.exists(ruta_agua):
+            try:
+                for root_dir, dirs, files in os.walk(ruta_agua):
+                    for f in files:
+                        os.remove(os.path.join(root_dir, f))
+                messagebox.showinfo("Éxito", "Texturas de agua eliminadas correctamente.")
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo eliminar el agua: {e}")
+        else:
+            messagebox.showinfo("Info", "No se encontraron texturas de agua específicas.")
+
+    threading.Thread(target=worker, daemon=True).start()
+
+# --- PRISON LIFE: SHUFFLE RELOAD ---
+
+def ejecutar_shuffle_reload(e=None):
+    global ejecutando_shuffle, shuffle_stop
+    if ejecutando_shuffle or not esta_en_roblox():
+        return
+
+    try:
+        delay = float(entry_shuffle_delay.get()) / 1000.0
+        if delay < 0.03:
+            delay = 0.03
+    except ValueError:
+        delay = 0.05
+
+    active_slots = []
+    if var_slot1.get(): active_slots.append("1")
+    if var_slot2.get(): active_slots.append("2")
+    if var_slot3.get(): active_slots.append("3")
+    if var_slot4.get(): active_slots.append("4")
+    beep = var_beep.get() and var_sonidos_app.get()
+    shuffle_stop = threading.Event()
+    stop_event = shuffle_stop
+    ejecutando_shuffle = True
+
+    def worker():
+        global ejecutando_shuffle
+        try:
+            for key in active_slots:
+                if stop_event.is_set():
+                    break
+                presionar_tecla_nativo(key)
+                if stop_event.wait(delay):
+                    break
+                presionar_tecla_nativo("r")
+                if stop_event.wait(delay):
+                    break
+
+            if beep:
+                try:
+                    ctypes.windll.kernel32.Beep(750, 40)
+                except Exception:
+                    pass
+        finally:
+            ejecutando_shuffle = False
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def optimized_shoot(active_slots, delay, stop_event):
+    user32 = ctypes.windll.user32
+    for key in active_slots:
+        if stop_event.is_set():
+            return
+        presionar_tecla_nativo(key)
+        if stop_event.wait(delay):
+            return
+        user32.mouse_event(0x0002, 0, 0, 0, 0)
+        user32.mouse_event(0x0004, 0, 0, 0, 0)
+        if stop_event.wait(delay):
+            return
+
+def fast_gun_swap_worker(active_slots, delay, hold_mode, secondary_key, stop_event, generation):
+    try:
+        if hold_mode:
+            while not stop_event.is_set() and keyboard.is_pressed(secondary_key):
+                optimized_shoot(active_slots, delay, stop_event)
+        else:
+            while not stop_event.is_set():
+                optimized_shoot(active_slots, delay, stop_event)
+    finally:
+        eventos_hotkey.put(("fast_swap_done", generation))
+
+def auto_train_worker(active_slots, click_enabled, click_type, delay, stop_event, generation):
+    user32 = ctypes.windll.user32
+    click_flags = (0x0008, 0x0010) if click_type == "Clic Derecho" else (0x0002, 0x0004)
+    try:
+        while not stop_event.is_set():
+            random.shuffle(active_slots)
+            for key in active_slots:
+                if stop_event.is_set():
+                    break
+                presionar_tecla_nativo(key)
+                if stop_event.wait(delay):
+                    break
+                if click_enabled:
+                    user32.mouse_event(click_flags[0], 0, 0, 0, 0)
+                    try:
+                        stop_event.wait(random.uniform(0.01, 0.03))
+                    finally:
+                        user32.mouse_event(click_flags[1], 0, 0, 0, 0)
+                    if stop_event.is_set():
+                        break
+                    if stop_event.wait(delay):
+                        break
+    finally:
+        eventos_hotkey.put(("auto_train_done", generation))
+
+def toggle_auto_train():
+    global auto_train_activo, auto_train_stop, auto_train_generation
+
+    if auto_train_activo:
+        auto_train_stop.set()
+        auto_train_activo = False
+        btn_auto_train.config(text="Iniciar Auto Train", bg="#2d2d2d")
+        lbl_auto_train_estado.config(text="Auto Train: detenido", fg="#aaaaaa")
+        return
+
+    if not esta_en_roblox():
+        lbl_auto_train_estado.config(text="Abre Roblox para iniciar Auto Train", fg="#ffcc00")
+        return
+
+    active_slots = [
+        key for key, variable in (
+            ("1", var_auto_train_slot1),
+            ("2", var_auto_train_slot2),
+            ("3", var_auto_train_slot3),
+            ("4", var_auto_train_slot4)
+        )
+        if variable.get()
+    ]
+    if not active_slots:
+        lbl_auto_train_estado.config(text="Selecciona al menos un slot", fg="#ffcc00")
+        return
+
+    try:
+        delay = max(0.01, float(entry_auto_train_delay.get()) / 1000.0)
+    except ValueError:
+        lbl_auto_train_estado.config(text="Introduce un intervalo válido", fg="#ffcc00")
+        return
+
+    auto_train_generation += 1
+    generation = auto_train_generation
+    auto_train_stop = threading.Event()
+    auto_train_activo = True
+    btn_auto_train.config(text="Detener Auto Train", bg="#552222")
+    lbl_auto_train_estado.config(text="Auto Train: activo", fg="#00ffcc")
+    threading.Thread(
+        target=auto_train_worker,
+        args=(
+            active_slots,
+            var_auto_train_click.get(),
+            combo_auto_train_click_type.get(),
+            delay,
+            auto_train_stop,
+            generation
+        ),
+        daemon=True
+    ).start()
+
+def toggle_fast_gun_swap():
+    global fast_gun_swap_activo, fast_gun_swap_stop, fast_gun_swap_generation
+
+    if fast_gun_swap_activo:
+        fast_gun_swap_stop.set()
+        fast_gun_swap_activo = False
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: detenido", fg="#aaaaaa")
+        return
+
+    if not esta_en_roblox():
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: abre Roblox y pulsa el atajo", fg="#ffcc00")
+        return
+
+    active_slots = []
+    if var_slot1.get(): active_slots.append("1")
+    if var_slot2.get(): active_slots.append("2")
+    if var_slot3.get(): active_slots.append("3")
+    if var_slot4.get(): active_slots.append("4")
+    if not active_slots:
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: selecciona al menos un slot", fg="#ffcc00")
+        return
+
+    try:
+        delay = max(0.01, float(entry_fast_swap_delay.get()) / 1000.0)
+    except ValueError:
+        delay = 0.05
+
+    hold_mode = var_fast_swap_hold.get()
+    secondary_key = entry_fast_swap_secondary.get().strip().lower()
+    if hold_mode and not secondary_key:
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: configura la tecla secundaria", fg="#ffcc00")
+        return
+    if hold_mode and not keyboard.is_pressed(secondary_key):
+        lbl_fast_gun_swap.config(
+            text=f"Fast Gun Swap: mantén {secondary_key.upper()} al pulsar el atajo",
+            fg="#ffcc00"
+        )
+        return
+
+    fast_gun_swap_generation += 1
+    generation = fast_gun_swap_generation
+    fast_gun_swap_stop = threading.Event()
+    fast_gun_swap_activo = True
+    lbl_fast_gun_swap.config(text="Fast Gun Swap: activo", fg="#00ffcc")
+    threading.Thread(
+        target=fast_gun_swap_worker,
+        args=(active_slots, delay, hold_mode, secondary_key, fast_gun_swap_stop, generation),
+        daemon=True
+    ).start()
+
+def agregar_evento_recorder(tipo, valor):
+    if recorder_started_at is not None:
+        recorder_events.append((time.perf_counter() - recorder_started_at, tipo, valor))
+
+def grabar_tecla_recorder(evento):
+    if evento.event_type not in (keyboard.KEY_DOWN, keyboard.KEY_UP) or not esta_en_roblox():
+        return
+
+    nombre_tecla = str(evento.name)
+    with recorder_lock:
+        if recorder_mode != "recording" or recorder_started_at is None:
+            return
+        if evento.event_type == keyboard.KEY_DOWN:
+            if nombre_tecla in recorder_keys_down:
+                return
+            recorder_keys_down.add(nombre_tecla)
+            agregar_evento_recorder("key_down", nombre_tecla)
+        elif nombre_tecla in recorder_keys_down:
+            recorder_keys_down.remove(nombre_tecla)
+            agregar_evento_recorder("key_up", nombre_tecla)
+
+def actualizar_estado_recorder(texto, color="#aaaaaa"):
+    if avisos_recorder_activos:
+        lbl_recorder_estado.config(text=texto, fg=color)
+
+def programar_ui_recorder(texto, color="#aaaaaa", sonido=False):
+    if avisos_recorder_activos:
+        eventos_hotkey.put(("recorder_status", texto, color))
+    if sonido and sonidos_activos:
+        eventos_hotkey.put(("recorder_sound",))
+
+def iniciar_grabacion_recorder():
+    global recorder_events, recorder_mode, recorder_started_at
+    global recorder_keyboard_hook, recorder_stop, recorder_keys_down
+
+    if recorder_mode != "idle" or (recorder_playback_stop and not recorder_playback_stop.is_set()):
+        messagebox.showwarning("Recorder", "Detén la grabación o reproducción actual primero.")
+        return
+
+    with recorder_lock:
+        recorder_events = []
+        recorder_keys_down.clear()
+        recorder_started_at = None
+        recorder_mode = "waiting"
+    recorder_stop = threading.Event()
+    recorder_keyboard_hook = keyboard.hook(grabar_tecla_recorder, suppress=False)
+    programar_ui_recorder("Pasa a Roblox para empezar a grabar...", "#ffcc00")
+    threading.Thread(target=recorder_mouse_worker, daemon=True).start()
+
+def recorder_mouse_worker():
+    global recorder_mode, recorder_started_at, recorder_keyboard_hook
+
+    user32 = ctypes.windll.user32
+    botones_vinculados = {"izquierdo": 0x01, "derecho": 0x02, "central": 0x04}
+    botones_pulsados = set()
+    ultima_posicion = None
+    punto = RECORDER_POINT()
+    stop_event = recorder_stop
+
+    while not stop_event.is_set():
+        en_roblox = esta_en_roblox()
+        with recorder_lock:
+            if recorder_mode == "waiting" and en_roblox:
+                recorder_mode = "recording"
+                recorder_started_at = time.perf_counter()
+                programar_ui_recorder(
+                    "Grabando... vuelve a esta ventana para terminar.", "#ff5555", sonido=True
+                )
+            elif recorder_mode == "recording" and not en_roblox:
+                break
+
+            if recorder_mode == "recording":
+                if user32.GetCursorPos(ctypes.byref(punto)):
+                    posicion = (punto.x, punto.y)
+                    if posicion != ultima_posicion:
+                        agregar_evento_recorder("mouse_move", posicion)
+                        ultima_posicion = posicion
+
+                for nombre_boton, codigo_boton in botones_vinculados.items():
+                    pulsado = bool(user32.GetAsyncKeyState(codigo_boton) & 0x8000)
+                    if pulsado and nombre_boton not in botones_pulsados:
+                        botones_pulsados.add(nombre_boton)
+                        agregar_evento_recorder("mouse_down", nombre_boton)
+                    elif not pulsado and nombre_boton in botones_pulsados:
+                        botones_pulsados.remove(nombre_boton)
+                        agregar_evento_recorder("mouse_up", nombre_boton)
+        stop_event.wait(0.01)
+
+    with recorder_lock:
+        if recorder_started_at is not None:
+            for nombre_boton in botones_pulsados:
+                agregar_evento_recorder("mouse_up", nombre_boton)
+            for nombre_tecla in recorder_keys_down:
+                agregar_evento_recorder("key_up", nombre_tecla)
+            recorder_keys_down.clear()
+        recorder_started_at = None
+        recorder_mode = "idle"
+        eventos_totales = len(recorder_events)
+
+    if recorder_keyboard_hook is not None:
+        try:
+            keyboard.unhook(recorder_keyboard_hook)
+        except Exception:
+            pass
+        recorder_keyboard_hook = None
+    if eventos_totales:
+        programar_ui_recorder(
+            f"Grabación lista: {eventos_totales} eventos.", "#00cc88", sonido=True
+        )
+    else:
+        programar_ui_recorder(
+            "No se grabaron eventos. Inicia con Roblox en primer plano.", "#ffcc00", sonido=True
+        )
+
+def detener_recorder():
+    if recorder_stop is not None:
+        recorder_stop.set()
+    if recorder_playback_stop is not None:
+        recorder_playback_stop.set()
+
+def reproducir_recorder():
+    global recorder_playback_stop
+
+    with recorder_lock:
+        eventos = list(recorder_events)
+    if not eventos:
+        messagebox.showwarning("Recorder", "Primero graba una secuencia en Roblox.")
+        return
+    if recorder_mode != "idle":
+        messagebox.showwarning("Recorder", "Detén la grabación y espera a que termine antes de reproducir.")
+        return
+    if recorder_playback_stop is not None and not recorder_playback_stop.is_set():
+        messagebox.showwarning("Recorder", "Ya hay una reproducción en curso.")
+        return
+
+    recorder_playback_stop = threading.Event()
+    programar_ui_recorder("Pasa a Roblox para reproducir la secuencia...", "#ffcc00")
+    threading.Thread(
+        target=reproducir_eventos_recorder,
+        args=(eventos, recorder_playback_stop),
+        daemon=True
+    ).start()
+
+def reproducir_eventos_recorder(eventos, stop_event):
+    user32 = ctypes.windll.user32
+    teclas_pulsadas = set()
+    botones_pulsados = set()
+    flags_mouse = {
+        "izquierdo": (0x0002, 0x0004),
+        "derecho": (0x0008, 0x0010),
+        "central": (0x0020, 0x0040)
+    }
+
+    programar_ui_recorder("Reproduciendo...", "#00ffcc", sonido=True)
+    while not stop_event.is_set() and not esta_en_roblox():
+        if stop_event.wait(0.05):
+            break
+
+    inicio = time.perf_counter()
+    try:
+        if stop_event.is_set() or not esta_en_roblox():
+            return
+        for instante, tipo, valor in eventos:
+            while not stop_event.is_set():
+                if not esta_en_roblox():
+                    stop_event.set()
+                    break
+                restante = instante - (time.perf_counter() - inicio)
+                if restante <= 0:
+                    break
+                stop_event.wait(min(restante, 0.02))
+            if stop_event.is_set():
+                break
+
+            if tipo == "key_down":
+                keyboard.press(valor)
+                teclas_pulsadas.add(valor)
+            elif tipo == "key_up":
+                keyboard.release(valor)
+                teclas_pulsadas.discard(valor)
+            elif tipo == "mouse_move":
+                user32.SetCursorPos(*valor)
+            elif tipo == "mouse_down":
+                user32.mouse_event(flags_mouse[valor][0], 0, 0, 0, 0)
+                botones_pulsados.add(valor)
+            elif tipo == "mouse_up":
+                user32.mouse_event(flags_mouse[valor][1], 0, 0, 0, 0)
+                botones_pulsados.discard(valor)
+    finally:
+        for tecla in teclas_pulsadas:
+            keyboard.release(tecla)
+        for boton in botones_pulsados:
+            user32.mouse_event(flags_mouse[boton][1], 0, 0, 0, 0)
+        reproduccion_interrumpida = stop_event.is_set()
+        stop_event.set()
+        mensaje = "Reproducción detenida." if reproduccion_interrumpida else "Reproducción terminada."
+        programar_ui_recorder(mensaje, sonido=True)
+
+def validar_eventos_recorder(eventos):
+    if not isinstance(eventos, (list, tuple)):
+        return []
+
+    eventos_validados = []
+    ultimo_instante = 0.0
+    tipos_validos = {"key_down", "key_up", "mouse_move", "mouse_down", "mouse_up"}
+    botones_validos = {"izquierdo", "derecho", "central"}
+    for evento in eventos:
+        if not isinstance(evento, (list, tuple)) or len(evento) != 3:
+            return []
+        instante, tipo, valor = evento
+        if (
+            isinstance(instante, bool)
+            or not isinstance(instante, (int, float))
+            or instante < ultimo_instante
+            or not isinstance(tipo, str)
+            or tipo not in tipos_validos
+        ):
+            return []
+        if tipo in ("key_down", "key_up"):
+            if not isinstance(valor, str) or not valor:
+                return []
+        elif tipo in ("mouse_down", "mouse_up"):
+            if not isinstance(valor, str) or valor not in botones_validos:
+                return []
+        elif (
+            not isinstance(valor, (list, tuple))
+            or len(valor) != 2
+            or any(isinstance(coordenada, bool) or not isinstance(coordenada, int) for coordenada in valor)
+        ):
+            return []
+        ultimo_instante = float(instante)
+        eventos_validados.append((ultimo_instante, tipo, tuple(valor) if tipo == "mouse_move" else valor))
+    return eventos_validados
+
+def actualizar_lista_macros():
+    combo_macros_recorder.configure(values=sorted(recorder_macros, key=str.casefold))
+
+def guardar_macro_recorder():
+    nombre = entry_nombre_macro.get().strip()
+    with recorder_lock:
+        eventos = list(recorder_events)
+    if not nombre:
+        messagebox.showwarning("Macro", "Escribe un nombre para la macro.")
+        return
+    if not eventos:
+        messagebox.showwarning("Macro", "Graba una secuencia antes de guardarla.")
+        return
+    if nombre in recorder_macros and not messagebox.askyesno(
+        "Reemplazar macro", f"Ya existe una macro llamada {nombre}. ¿Reemplazarla?"
+    ):
+        return
+    recorder_macros[nombre] = eventos
+    combo_macros_recorder.set(nombre)
+    actualizar_lista_macros()
+    actualizar_estado_recorder(f"Macro guardada: {nombre}", app_accent_color)
+    guardar_configuracion()
+
+def cargar_macro_recorder():
+    nombre = combo_macros_recorder.get().strip()
+    eventos = recorder_macros.get(nombre)
+    if not eventos:
+        messagebox.showwarning("Macro", "Selecciona una macro guardada.")
+        return
+    if recorder_mode != "idle" or (recorder_playback_stop and not recorder_playback_stop.is_set()):
+        messagebox.showwarning("Macro", "Detén la actividad actual antes de cargar otra macro.")
+        return
+    with recorder_lock:
+        recorder_events[:] = eventos
+    actualizar_estado_recorder(f"Macro lista: {nombre}", app_accent_color)
+
+def exportar_macro_recorder():
+    nombre = combo_macros_recorder.get().strip()
+    eventos = recorder_macros.get(nombre)
+    if not eventos:
+        messagebox.showwarning("Macro", "Selecciona una macro guardada para exportar.")
+        return
+    ruta = filedialog.asksaveasfilename(
+        title="Exportar macro",
+        defaultextension=".json",
+        initialfile=f"{nombre}.json",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+    try:
+        with open(ruta, "w", encoding="utf-8") as archivo:
+            json.dump({"name": nombre, "events": eventos}, archivo, indent=2)
+        actualizar_estado_recorder(f"Macro exportada: {nombre}", app_accent_color)
+    except OSError as error:
+        messagebox.showerror("Error al exportar macro", str(error))
+
+def importar_macro_recorder():
+    ruta = filedialog.askopenfilename(
+        title="Importar macro",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+    try:
+        with open(ruta, "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
+    except (OSError, json.JSONDecodeError) as error:
+        messagebox.showerror("Error al importar macro", str(error))
+        return
+    nombre = datos.get("name") if isinstance(datos, dict) else None
+    eventos = validar_eventos_recorder(datos.get("events")) if isinstance(datos, dict) else []
+    if not isinstance(nombre, str) or not nombre.strip() or not eventos:
+        messagebox.showerror("Macro no válida", "El archivo no contiene una macro compatible.")
+        return
+    nombre = nombre.strip()
+    if nombre in recorder_macros and not messagebox.askyesno(
+        "Reemplazar macro", f"Ya existe una macro llamada {nombre}. ¿Reemplazarla?"
+    ):
+        return
+    recorder_macros[nombre] = eventos
+    actualizar_lista_macros()
+    combo_macros_recorder.set(nombre)
+    guardar_configuracion()
+    actualizar_estado_recorder(f"Macro importada: {nombre}", app_accent_color)
+
+# --- LAG SWITCHER ---
+
+def aplicar_regla_firewall(activar=True):
+    ruta_roblox = obtener_ruta_roblox()
+
+    if activar and not ruta_roblox:
+        return False, "No se encontró Roblox. Abre el juego antes de activar el Lag Switch."
+    
+    if win32com:
+        try:
+            fw_policy = win32com.client.Dispatch("HNetCfg.FwPolicy2")
+            rules = fw_policy.Rules
+            
+            try:
+                rules.Remove("RobloxLagSwitch")
+            except Exception:
+                pass
+
+            if activar:
+                rule_obj = win32com.client.Dispatch("HNetCfg.FwRule")
+                rule_obj.Name = "RobloxLagSwitch"
+                rule_obj.ApplicationName = ruta_roblox if ruta_roblox else ""
+                rule_obj.Direction = 2  # Outbound
+                rule_obj.Action = 0     # Block
+                rule_obj.InterfaceTypes = "All"
+                rule_obj.Enabled = True
+                rules.Add(rule_obj)
+            return True, ""
+        except Exception:
+            pass
+
+    try:
+        subprocess.run('netsh advfirewall firewall delete rule name="RobloxLagSwitch"', shell=True, capture_output=True)
+        if activar:
+            cmd = f'netsh advfirewall firewall add rule name="RobloxLagSwitch" dir=out action=block'
+            if ruta_roblox:
+                cmd += f' program="{ruta_roblox}"'
+            resultado = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if resultado.returncode != 0:
+                detalle = resultado.stderr.strip() or resultado.stdout.strip()
+                return False, detalle or "No se pudo añadir la regla. Ejecuta la aplicación como administrador."
+        return True, ""
+    except Exception as error:
+        return False, str(error)
+
+def mostrar_error_lag(mensaje):
+    actualizar_ui_lag_switch()
+    messagebox.showerror("No se pudo activar el Lag Switch", mensaje)
+
+def aplicar_logica_lag():
+    global lag_switch_activo
+    stop_event = lag_switch_stop
+    exito, error = aplicar_regla_firewall(activar=True)
+    if not exito:
+        lag_switch_activo = False
+        root.after(0, lambda: mostrar_error_lag(error))
+        return
+
+    if stop_event.is_set() or not lag_switch_activo:
+        aplicar_regla_firewall(activar=False)
+        return
+    
+    try:
+        milisegundos = float(entry_lag_duracion.get())
+        if milisegundos > 0:
+            if stop_event.wait(milisegundos / 1000.0):
+                return
+            lag_switch_activo = False
+            root.after(0, actualizar_ui_lag_switch)
+        else:
+            stop_event.wait()
+    except ValueError:
+        pass
+
+def toggle_lag_switch(e=None):
+    global lag_switch_activo
+    lag_switch_activo = not lag_switch_activo
+    if lag_switch_activo:
+        lag_switch_stop.clear()
+    else:
+        lag_switch_stop.set()
+    root.after(0, actualizar_ui_lag_switch)
+
+def ignorar_hotkey_durante_reproduccion(accion):
+    return (
+        recorder_playback_stop is not None
+        and not recorder_playback_stop.is_set()
+        and accion != "recorder_stop"
+    )
+
+def encolar_hotkey_si_nueva(accion, evento):
+    if evento.event_type == keyboard.KEY_DOWN:
+        if ignorar_hotkey_durante_reproduccion(accion):
+            return
+        if accion not in hotkeys_mantenidas:
+            hotkeys_mantenidas.add(accion)
+            eventos_hotkey.put(accion)
+    else:
+        hotkeys_mantenidas.discard(accion)
+
+def normalizar_nombre_tecla(nombre):
+    nombre = nombre.lower().replace("left ", "").replace("right ", "")
+    return {"windows": "windows", "command": "windows"}.get(nombre, nombre)
+
+def recibir_tecla_para_captura(evento):
+    global captura_hotkey_activa, captura_modificador_suelto
+    nombre = normalizar_nombre_tecla(evento.name)
+    modificadores = {"ctrl", "shift", "alt", "windows"}
+
+    if evento.event_type == keyboard.KEY_DOWN:
+        if evento.scan_code in captura_teclas_pulsadas:
+            return
+        captura_teclas_pulsadas.add(evento.scan_code)
+        if nombre == "esc":
+            eventos_hotkey.put(("hotkey_capture_cancel",))
+        elif nombre in modificadores:
+            captura_modificadores.add(nombre)
+            captura_modificador_suelto = nombre
+        else:
+            combo = "+".join(sorted(captura_modificadores) + [nombre])
+            eventos_hotkey.put(("hotkey_capture_done", combo))
+    else:
+        captura_teclas_pulsadas.discard(evento.scan_code)
+        if nombre in modificadores:
+            captura_modificadores.discard(nombre)
+            if captura_modificador_suelto == nombre and not captura_teclas_pulsadas:
+                eventos_hotkey.put(("hotkey_capture_done", nombre))
+            captura_modificador_suelto = None
+
+def iniciar_captura_hotkey(entry, boton):
+    global captura_hotkey_activa, captura_hotkey_hook
+    global captura_hotkey_entry, captura_hotkey_boton, captura_timeout_id
+
+    cancelar_captura_hotkey()
+    captura_hotkey_activa = True
+    captura_hotkey_entry = entry
+    captura_hotkey_boton = boton
+    captura_teclas_pulsadas.clear()
+    captura_modificadores.clear()
+    boton.config(text="Pulsa tecla...")
+    captura_hotkey_hook = keyboard.hook(recibir_tecla_para_captura, suppress=False)
+    captura_timeout_id = root.after(10000, cancelar_captura_hotkey)
+
+def cancelar_captura_hotkey():
+    global captura_hotkey_activa, captura_hotkey_hook, captura_hotkey_entry
+    global captura_hotkey_boton, captura_timeout_id
+
+    if captura_hotkey_hook is not None:
+        keyboard.unhook(captura_hotkey_hook)
+    if captura_timeout_id is not None:
+        try:
+            root.after_cancel(captura_timeout_id)
+        except tk.TclError:
+            pass
+    if captura_hotkey_boton is not None:
+        captura_hotkey_boton.config(text="Asignar")
+    captura_hotkey_activa = False
+    captura_hotkey_hook = None
+    captura_hotkey_entry = None
+    captura_hotkey_boton = None
+    captura_timeout_id = None
+    captura_teclas_pulsadas.clear()
+    captura_modificadores.clear()
+    captura_modificador_suelto = None
+
+def finalizar_captura_hotkey(tecla):
+    guardar_y_registrar = (
+        captura_hotkey_entry is entry_auto_train_key
+        or captura_hotkey_entry in recorder_hotkey_entries.values()
+    )
+    if captura_hotkey_entry is not None:
+        captura_hotkey_entry.delete(0, tk.END)
+        captura_hotkey_entry.insert(0, tecla)
+    cancelar_captura_hotkey()
+    if guardar_y_registrar:
+        actualizar_hotkeys()
+
+def registrar_hotkey(tecla, accion):
+    partes = [parte.strip().lower() for parte in tecla.split("+") if parte.strip()]
+    if not partes:
+        return None
+
+    codigos = [set(keyboard.key_to_scan_codes(parte)) for parte in partes]
+    if any(not codigos_parte for codigos_parte in codigos):
+        raise ValueError(f"Tecla no reconocida en el atajo: {tecla}")
+
+    if len(partes) == 1:
+        return keyboard.hook_key(
+            partes[0],
+            lambda evento: encolar_hotkey_si_nueva(accion, evento),
+            suppress=False
+        )
+
+    codigos_disparador = codigos[-1]
+    codigos_modificadores = codigos[:-1]
+    presionadas = set()
+    disparado = False
+
+    def detectar_combinacion(evento):
+        nonlocal disparado
+        if evento.event_type == keyboard.KEY_DOWN:
+            presionadas.add(evento.scan_code)
+            if (
+                evento.scan_code in codigos_disparador
+                and not disparado
+                and not ignorar_hotkey_durante_reproduccion(accion)
+                and all(presionadas.intersection(codigos_parte) for codigos_parte in codigos_modificadores)
+            ):
+                disparado = True
+                eventos_hotkey.put(accion)
+        else:
+            presionadas.discard(evento.scan_code)
+            if evento.scan_code in codigos_disparador:
+                disparado = False
+
+    return keyboard.hook(detectar_combinacion, suppress=False)
+
+def procesar_eventos_hotkey():
+    global fast_gun_swap_activo, fast_gun_swap_stop, auto_train_activo, auto_train_stop
+    while not eventos_hotkey.empty():
+        evento = eventos_hotkey.get()
+        if isinstance(evento, tuple) and evento[0] == "fast_swap_done":
+            if evento[1] == fast_gun_swap_generation:
+                fast_gun_swap_activo = False
+                fast_gun_swap_stop = None
+                lbl_fast_gun_swap.config(text="Fast Gun Swap: detenido", fg="#aaaaaa")
+        elif isinstance(evento, tuple) and evento[0] == "auto_train_done":
+            if evento[1] == auto_train_generation:
+                auto_train_activo = False
+                auto_train_stop = None
+                btn_auto_train.config(text="Iniciar Auto Train", bg="#2d2d2d")
+                lbl_auto_train_estado.config(text="Auto Train: detenido", fg="#aaaaaa")
+        elif isinstance(evento, tuple) and evento[0] == "recorder_status":
+            actualizar_estado_recorder(evento[1], evento[2])
+        elif isinstance(evento, tuple) and evento[0] == "recorder_sound":
+            root.bell()
+        elif isinstance(evento, tuple) and evento[0] == "hotkey_capture_done":
+            finalizar_captura_hotkey(evento[1])
+        elif isinstance(evento, tuple) and evento[0] == "hotkey_capture_cancel":
+            cancelar_captura_hotkey()
+        elif evento == "afk":
+            toggle_anti_afk()
+        elif evento == "click":
+            toggle_autoclicker()
+        elif evento == "lag":
+            toggle_lag_switch()
+        elif evento == "shuffle":
+            ejecutar_shuffle_reload()
+        elif evento == "fast_swap":
+            toggle_fast_gun_swap()
+        elif evento == "auto_train":
+            toggle_auto_train()
+        elif evento == "recorder_start":
+            iniciar_grabacion_recorder()
+        elif evento == "recorder_play":
+            reproducir_recorder()
+        elif evento == "recorder_stop":
+            detener_recorder()
+    root.after(20, procesar_eventos_hotkey)
+
+def actualizar_ui_lag_switch():
+    if lag_switch_activo:
+        btn_lagswitch.config(text="Desactivar Lag Switch", bg="#552222")
+        threading.Thread(target=aplicar_logica_lag, daemon=True).start()
+    else:
+        threading.Thread(target=lambda: aplicar_regla_firewall(activar=False), daemon=True).start()
+        btn_lagswitch.config(text="Activar Lag Switch", bg="#2d2d2d")
+
+def detener_todo():
+    global anti_afk_activo, autoclicker_activo, lag_switch_activo
+    global fast_gun_swap_activo, fast_gun_swap_stop, auto_train_activo
+
+    anti_afk_activo = False
+    autoclicker_activo = False
+    lag_switch_activo = False
+    lag_switch_stop.set()
+
+    if shuffle_stop:
+        shuffle_stop.set()
+    if fast_gun_swap_stop:
+        fast_gun_swap_stop.set()
+    fast_gun_swap_activo = False
+    if auto_train_stop:
+        auto_train_stop.set()
+    auto_train_activo = False
+
+    btn_antiafk.config(text="Activar Anti-AFK", bg="#2d2d2d")
+    btn_autoclicker.config(text="Activar Autoclicker", bg="#2d2d2d")
+    btn_lagswitch.config(text="Activar Lag Switch", bg="#2d2d2d")
+    lbl_fast_gun_swap.config(text="Fast Gun Swap: detenido", fg="#aaaaaa")
+    btn_auto_train.config(text="Iniciar Auto Train", bg="#2d2d2d")
+    lbl_auto_train_estado.config(text="Auto Train: detenido", fg="#aaaaaa")
+    threading.Thread(
+        target=lambda: aplicar_regla_firewall(activar=False),
+        daemon=True
+    ).start()
+
+# --- ANTI-AFK ---
+
+def ejecutar_accion_afk():
+    accion = combo_accion_afk.get()
+
+    try:
+        if "Espacio" in accion:
+            presionar_tecla_nativo(" ")
+        elif "W" in accion:
+            presionar_tecla_nativo("w")
+        elif "Cámara" in accion:
+            ctypes.windll.user32.mouse_event(0x0001, 15, 0, 0, 0)
+            time.sleep(0.05)
+            ctypes.windll.user32.mouse_event(0x0001, -15, 0, 0, 0)
+    except Exception:
+        pass
+
+def loop_anti_afk():
+    global anti_afk_activo
+    while anti_afk_activo:
+        try:
+            segundos_espera = float(entry_afk_tiempo.get())
+            if segundos_espera < 1:
+                segundos_espera = 1
+        except ValueError:
+            segundos_espera = 60
+
+        pasos = int(segundos_espera * 10)
+        for _ in range(pasos):
+            if not anti_afk_activo:
+                return
+            time.sleep(0.1)
+
+        if anti_afk_activo and esta_en_roblox():
+            ejecutar_accion_afk()
+
+def toggle_anti_afk(e=None):
+    global anti_afk_activo
+    anti_afk_activo = not anti_afk_activo
+    root.after(0, actualizar_ui_afk)
+
+def actualizar_ui_afk():
+    if anti_afk_activo:
+        btn_antiafk.config(text="Desactivar Anti-AFK", bg="#552222")
+        threading.Thread(target=loop_anti_afk, daemon=True).start()
+    else:
+        btn_antiafk.config(text="Activar Anti-AFK", bg="#2d2d2d")
+
+# --- AUTOCLICKER ---
+
+def hacer_clic_nativo():
+    tipo_clic = combo_tipo_clic.get()
+    if "Derecho" in tipo_clic:
+        DOWN, UP = 0x0008, 0x0010
+    else:
+        DOWN, UP = 0x0002, 0x0004
+
+    ctypes.windll.user32.mouse_event(DOWN, 0, 0, 0, 0)
+    time.sleep(random.uniform(0.01, 0.03))
+    ctypes.windll.user32.mouse_event(UP, 0, 0, 0, 0)
+
+def loop_autoclicker():
+    global autoclicker_activo
+    while autoclicker_activo:
+        try:
+            milisegundos = float(entry_click_tiempo.get())
+            if milisegundos < 5:
+                milisegundos = 5
+            intervalo = milisegundos / 1000.0
+        except ValueError:
+            intervalo = 0.1
+
+        if esta_en_roblox():
+            hacer_clic_nativo()
+
+        fluctuacion = random.uniform(-0.005, 0.005)
+        tiempo_espera = max(0.001, intervalo + fluctuacion)
+        time.sleep(tiempo_espera)
+
+def toggle_autoclicker(e=None):
+    global autoclicker_activo
+    autoclicker_activo = not autoclicker_activo
+    root.after(0, actualizar_ui_autoclicker)
+
+def actualizar_ui_autoclicker():
+    if autoclicker_activo:
+        btn_autoclicker.config(text="Desactivar Autoclicker", bg="#552222")
+        threading.Thread(target=loop_autoclicker, daemon=True).start()
+    else:
+        btn_autoclicker.config(text="Activar Autoclicker", bg="#2d2d2d")
+
+# --- CONFIGURACIÓN DE TECLAS Y PERSISTENCIA (JSON) ---
+
+def identidad_hotkey(tecla):
+    partes = [parte.strip().lower() for parte in tecla.split("+") if parte.strip()]
+    if not partes:
+        return None
+    codigos = [frozenset(keyboard.key_to_scan_codes(parte)) for parte in partes]
+    if any(not codigos_parte for codigos_parte in codigos):
+        raise ValueError(f"Tecla no reconocida en el atajo: {tecla}")
+    return frozenset(codigos)
+
+def encontrar_conflictos_hotkeys(atajos):
+    propietarios = {}
+    for nombre, tecla in atajos:
+        if not tecla:
+            continue
+        identidad = identidad_hotkey(tecla)
+        propietarios.setdefault(identidad, []).append(nombre)
+    return [nombres for nombres in propietarios.values() if len(nombres) > 1]
+
+def actualizar_hotkeys():
+    global hotkeys_registradas
+
+    atajos = (
+        ("Anti-AFK", entry_key_afk.get().strip().lower()),
+        ("Autoclicker", entry_key_click.get().strip().lower()),
+        ("Lag Switch", entry_key_lag.get().strip().lower()),
+        ("Shuffle Reload", entry_key_shuffle.get().strip().lower()),
+        ("Fast Gun Swap", entry_fast_swap_key.get().strip().lower()),
+        ("Auto Train", entry_auto_train_key.get().strip().lower()),
+        ("Recorder - Grabar", recorder_hotkey_entries["start"].get().strip().lower()),
+        ("Recorder - Reproducir", recorder_hotkey_entries["play"].get().strip().lower()),
+        ("Recorder - Detener", recorder_hotkey_entries["stop"].get().strip().lower())
+    )
+    try:
+        conflictos = encontrar_conflictos_hotkeys(atajos)
+    except ValueError as error:
+        messagebox.showerror("Atajo no válido", str(error))
+        return
+    if conflictos:
+        detalle = "\n".join(" y ".join(nombres) for nombres in conflictos)
+        messagebox.showerror("Atajos repetidos", f"Asigna teclas distintas a estas funciones:\n{detalle}")
+        return
+
+    for hk in hotkeys_registradas:
+        try:
+            hk()
+        except Exception:
+            pass
+    hotkeys_registradas.clear()
+    hotkeys_mantenidas.clear()
+
+    try:
+        for (nombre, tecla), accion in zip(atajos, (
+            "afk", "click", "lag", "shuffle", "fast_swap", "auto_train",
+            "recorder_start", "recorder_play", "recorder_stop"
+        )):
+            if tecla:
+                hotkeys_registradas.append(registrar_hotkey(tecla, accion))
+
+        guardar_configuracion()
+        if not fast_gun_swap_activo:
+            lbl_fast_gun_swap.config(
+                text=f"Fast Gun Swap: atajo {atajos[4][1].upper()} guardado",
+                fg="#aaaaaa"
+            )
+    except Exception as err:
+        messagebox.showerror("Error registrando atajos", str(err))
+
+def guardar_configuracion():
+    global perfiles_config
+    perfiles_config[perfil_activo] = obtener_configuracion_actual()
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump({
+                "active_profile": perfil_activo,
+                "profiles": perfiles_config,
+                "intro_animation": var_intro_animacion.get(),
+                "roblox_username": roblox_profile_username,
+                "app_accent_color": app_accent_color,
+                "app_theme": app_theme_name,
+                "app_ui_scale": app_ui_scale,
+                "profile_colors": perfil_colores,
+                "menu_order": orden_secciones,
+                "recorder_macros": recorder_macros,
+                "app_sounds_enabled": sonidos_activos,
+                "recorder_notifications": avisos_recorder_activos
+            }, f, indent=4)
+    except Exception:
+        pass
+
+def mezclar_colores(color_primario, color_secundario, proporcion):
+    componentes_primarios = tuple(int(color_primario[indice:indice + 2], 16) for indice in (1, 3, 5))
+    componentes_secundarios = tuple(int(color_secundario[indice:indice + 2], 16) for indice in (1, 3, 5))
+    componentes = tuple(
+        round(primario * (1 - proporcion) + secundario * proporcion)
+        for primario, secundario in zip(componentes_primarios, componentes_secundarios)
+    )
+    return "#" + "".join(f"{componente:02x}" for componente in componentes)
+
+def aplicar_paleta_app(nueva_paleta):
+    global app_theme_palette, app_accent_color
+
+    paleta_anterior = app_theme_palette or APP_THEMES["GGSPQE"]
+    colores_base = {
+        "#121212": "bg", "#1e1e1e": "top", "#181818": "sidebar",
+        "#222222": "panel", "#333333": "panel_alt", "#2d2d2d": "input",
+        "#ffffff": "text", "#aaaaaa": "muted", "#00ffcc": "accent",
+        "#a8cbb8": "accent_light", "#00cc88": "accent_light", "#00aa66": "accent_light",
+        "#1f4037": "button", "#2f5f52": "button_active",
+        "#552222": "danger", "#773333": "danger_active"
+    }
+    mapa_colores = {origen: nueva_paleta[rol] for origen, rol in colores_base.items()}
+    mapa_colores.update({
+        valor_anterior: nueva_paleta[rol]
+        for rol, valor_anterior in paleta_anterior.items()
+    })
+
+    def recolorear(widget):
+        for opcion in ("bg", "fg", "activebackground", "activeforeground", "selectcolor", "highlightbackground", "highlightcolor"):
+            try:
+                valor_actual = widget.cget(opcion).lower()
+                if valor_actual in mapa_colores:
+                    widget.configure(**{opcion: mapa_colores[valor_actual]})
+            except (tk.TclError, AttributeError):
+                pass
+        for hijo in widget.winfo_children():
+            recolorear(hijo)
+
+    recolorear(root)
+    estilo = ttk.Style(root)
+    if "clam" in estilo.theme_names() and estilo.theme_use() != "clam":
+        estilo.theme_use("clam")
+    estilo.configure(
+        "TCombobox",
+        fieldbackground=nueva_paleta["input"],
+        background=nueva_paleta["input"],
+        foreground=nueva_paleta["text"],
+        arrowcolor=nueva_paleta["accent"]
+    )
+    estilo.map(
+        "TCombobox",
+        fieldbackground=[("readonly", nueva_paleta["input"])],
+        foreground=[("readonly", nueva_paleta["text"])],
+        selectbackground=[("readonly", nueva_paleta["input"])],
+        selectforeground=[("readonly", nueva_paleta["text"])]
+    )
+    app_theme_palette = dict(nueva_paleta)
+    app_accent_color = nueva_paleta["accent"]
+    if "lbl_muestra_color" in globals():
+        lbl_muestra_color.config(bg=app_accent_color)
+    if "combo_perfiles" in globals() and "lbl_muestra_color_perfil" in globals():
+        actualizar_muestra_color_perfil()
+
+def aplicar_tema_app(nombre_tema):
+    global app_theme_name
+    if nombre_tema not in APP_THEMES:
+        return
+    app_theme_name = nombre_tema
+    aplicar_paleta_app(APP_THEMES[nombre_tema])
+    if "combo_tema_app" in globals():
+        combo_tema_app.set(nombre_tema)
+    guardar_configuracion()
+
+def aplicar_color_app(color):
+    color = color.lower()
+    paleta_personalizada = dict(app_theme_palette or APP_THEMES[app_theme_name])
+    paleta_personalizada["accent"] = color
+    paleta_personalizada["accent_light"] = mezclar_colores(color, "#ffffff", 0.18)
+    paleta_personalizada["button"] = mezclar_colores(color, paleta_personalizada["bg"], 0.68)
+    paleta_personalizada["button_active"] = mezclar_colores(color, paleta_personalizada["bg"], 0.53)
+    aplicar_paleta_app(paleta_personalizada)
+
+def aplicar_escala_app(factor):
+    global app_ui_scale
+    try:
+        factor = float(factor)
+        if factor not in (0.9, 1.0, 1.15):
+            return
+        root.tk.call("tk", "scaling", escala_tk_base * factor)
+        app_ui_scale = factor
+        root.update_idletasks()
+    except (tk.TclError, NameError):
+        return
+    guardar_configuracion()
+
+def elegir_color_app():
+    resultado = colorchooser.askcolor(
+        color=app_accent_color,
+        parent=root,
+        title="Elegir color de acento"
+    )
+    if resultado[1]:
+        aplicar_color_app(resultado[1].lower())
+        guardar_configuracion()
+
+def elegir_tema_app(event=None):
+    aplicar_tema_app(combo_tema_app.get())
+
+def elegir_escala_app(event=None):
+    factores = {"Compacta": 0.9, "Normal": 1.0, "Grande": 1.15}
+    aplicar_escala_app(factores.get(combo_escala_app.get(), 1.0))
+
+def guardar_opciones_audio():
+    global sonidos_activos, avisos_recorder_activos
+    sonidos_activos = var_sonidos_app.get()
+    avisos_recorder_activos = var_avisos_recorder.get()
+    if avisos_recorder_activos:
+        lbl_recorder_estado.pack(pady=8)
+    else:
+        lbl_recorder_estado.pack_forget()
+    guardar_configuracion()
+
+def actualizar_muestra_color_perfil(event=None):
+    nombre = combo_perfiles.get().strip()
+    color = perfil_colores.get(nombre, app_accent_color)
+    lbl_muestra_color_perfil.config(bg=color)
+
+def elegir_color_perfil():
+    nombre = combo_perfiles.get().strip()
+    if nombre not in perfiles_config:
+        messagebox.showwarning("Color de perfil", "Guarda o selecciona un perfil primero.")
+        return
+    resultado = colorchooser.askcolor(
+        color=perfil_colores.get(nombre, app_accent_color),
+        parent=root,
+        title=f"Color del perfil {nombre}"
+    )
+    if resultado[1]:
+        perfil_colores[nombre] = resultado[1].lower()
+        actualizar_muestra_color_perfil()
+        guardar_configuracion()
+
+def mover_seccion_menu(direccion):
+    seleccion = lista_orden_menu.curselection()
+    if not seleccion:
+        return
+    indice = seleccion[0]
+    nuevo_indice = indice + direccion
+    if not 0 <= nuevo_indice < len(orden_secciones):
+        return
+    orden_secciones[indice], orden_secciones[nuevo_indice] = (
+        orden_secciones[nuevo_indice], orden_secciones[indice]
+    )
+    actualizar_lista_orden_menu(nuevo_indice)
+    aplicar_orden_menu()
+    guardar_configuracion()
+
+def actualizar_lista_orden_menu(indice_seleccionado=0):
+    lista_orden_menu.delete(0, tk.END)
+    for seccion in orden_secciones:
+        lista_orden_menu.insert(tk.END, seccion)
+    if orden_secciones:
+        indice = min(max(0, indice_seleccionado), len(orden_secciones) - 1)
+        lista_orden_menu.selection_set(indice)
+
+def aplicar_orden_menu():
+    global menu_juegos_desplegado
+    if "btn_roblox" not in globals() or not orden_secciones:
+        return
+    frame_sub_juegos.pack_forget()
+    menu_juegos_desplegado = False
+    btn_juegos.config(text="▶ Juegos")
+    widgets = {
+        "Roblox": btn_roblox,
+        "Juegos": btn_juegos,
+        "Texturas": btn_texturas,
+        "Recorder": btn_recorder,
+        "Preferencias": btn_opcion3
+    }
+    for widget in widgets.values():
+        widget.pack_forget()
+    for seccion in orden_secciones:
+        widgets[seccion].pack(pady=5 if seccion != "Roblox" else 10, padx=10)
+    btn_detener_todo.pack_forget()
+    btn_detener_todo.pack(pady=(20, 5), padx=10)
+
+def obtener_configuracion_actual():
+    return {
+        "afk_tiempo": entry_afk_tiempo.get(),
+        "afk_key": entry_key_afk.get(),
+        "afk_accion": combo_accion_afk.get(),
+        "click_tiempo": entry_click_tiempo.get(),
+        "click_key": entry_key_click.get(),
+        "click_tipo": combo_tipo_clic.get(),
+        "lag_key": entry_key_lag.get(),
+        "lag_duracion": entry_lag_duracion.get(),
+        "shuffle_key": entry_key_shuffle.get(),
+        "shuffle_delay": entry_shuffle_delay.get(),
+        "fast_swap_key": entry_fast_swap_key.get(),
+        "fast_swap_delay": entry_fast_swap_delay.get(),
+        "fast_swap_secondary_key": entry_fast_swap_secondary.get(),
+        "fast_swap_hold": var_fast_swap_hold.get(),
+        "slot1": var_slot1.get(),
+        "slot2": var_slot2.get(),
+        "slot3": var_slot3.get(),
+        "slot4": var_slot4.get(),
+        "beep": var_beep.get(),
+        "auto_train_slot1": var_auto_train_slot1.get(),
+        "auto_train_slot2": var_auto_train_slot2.get(),
+        "auto_train_slot3": var_auto_train_slot3.get(),
+        "auto_train_slot4": var_auto_train_slot4.get(),
+        "auto_train_click": var_auto_train_click.get(),
+        "auto_train_click_type": combo_auto_train_click_type.get(),
+        "auto_train_delay": entry_auto_train_delay.get(),
+        "auto_train_key": entry_auto_train_key.get(),
+        "recorder_start_key": recorder_hotkey_entries["start"].get(),
+        "recorder_play_key": recorder_hotkey_entries["play"].get(),
+        "recorder_stop_key": recorder_hotkey_entries["stop"].get()
+    }
+
+def aplicar_configuracion(config):
+    entry_afk_tiempo.delete(0, tk.END); entry_afk_tiempo.insert(0, config.get("afk_tiempo", "60"))
+    entry_key_afk.delete(0, tk.END); entry_key_afk.insert(0, config.get("afk_key", "f1"))
+    combo_accion_afk.set(config.get("afk_accion", "Saltar (Espacio)"))
+
+    entry_click_tiempo.delete(0, tk.END); entry_click_tiempo.insert(0, config.get("click_tiempo", "100"))
+    entry_key_click.delete(0, tk.END); entry_key_click.insert(0, config.get("click_key", "f2"))
+    combo_tipo_clic.set(config.get("click_tipo", "Clic Izquierdo"))
+
+    entry_key_lag.delete(0, tk.END); entry_key_lag.insert(0, config.get("lag_key", "f3"))
+    entry_lag_duracion.delete(0, tk.END); entry_lag_duracion.insert(0, config.get("lag_duracion", "3000"))
+
+    entry_key_shuffle.delete(0, tk.END); entry_key_shuffle.insert(0, config.get("shuffle_key", "r"))
+    entry_shuffle_delay.delete(0, tk.END); entry_shuffle_delay.insert(0, config.get("shuffle_delay", "50"))
+    entry_fast_swap_key.delete(0, tk.END); entry_fast_swap_key.insert(0, config.get("fast_swap_key", "f4"))
+    entry_fast_swap_delay.delete(0, tk.END); entry_fast_swap_delay.insert(0, config.get("fast_swap_delay", "50"))
+    entry_fast_swap_secondary.delete(0, tk.END); entry_fast_swap_secondary.insert(0, config.get("fast_swap_secondary_key", "shift"))
+
+    var_fast_swap_hold.set(config.get("fast_swap_hold", False))
+    var_slot1.set(config.get("slot1", True))
+    var_slot2.set(config.get("slot2", True))
+    var_slot3.set(config.get("slot3", True))
+    var_slot4.set(config.get("slot4", False))
+    var_beep.set(config.get("beep", True))
+    var_auto_train_slot1.set(config.get("auto_train_slot1", True))
+    var_auto_train_slot2.set(config.get("auto_train_slot2", True))
+    var_auto_train_slot3.set(config.get("auto_train_slot3", True))
+    var_auto_train_slot4.set(config.get("auto_train_slot4", True))
+    var_auto_train_click.set(config.get("auto_train_click", True))
+    combo_auto_train_click_type.set(config.get("auto_train_click_type", "Clic Izquierdo"))
+    entry_auto_train_delay.delete(0, tk.END)
+    entry_auto_train_delay.insert(0, config.get("auto_train_delay", "100"))
+    entry_auto_train_key.delete(0, tk.END)
+    entry_auto_train_key.insert(0, config.get("auto_train_key", "f5"))
+    for accion, valor_predeterminado in (("start", "f6"), ("play", "f7"), ("stop", "f8")):
+        entrada = recorder_hotkey_entries[accion]
+        entrada.delete(0, tk.END)
+        entrada.insert(0, config.get(f"recorder_{accion}_key", valor_predeterminado))
+
+def guardar_perfil():
+    global perfil_activo, perfiles_config
+    nombre = entry_perfil_nombre.get().strip() or combo_perfiles.get().strip()
+    if not nombre:
+        messagebox.showwarning("Perfil", "Escribe un nombre para el perfil.")
+        return
+    perfil_activo = nombre
+    perfiles_config[perfil_activo] = obtener_configuracion_actual()
+    perfil_colores.setdefault(perfil_activo, app_accent_color)
+    combo_perfiles.configure(values=sorted(perfiles_config))
+    combo_perfiles.set(perfil_activo)
+    actualizar_muestra_color_perfil()
+    entry_perfil_nombre.delete(0, tk.END)
+    guardar_configuracion()
+
+def cargar_perfil():
+    global perfil_activo
+    nombre = combo_perfiles.get().strip()
+    if nombre not in perfiles_config:
+        messagebox.showwarning("Perfil", "Selecciona un perfil guardado.")
+        return
+    detener_todo()
+    perfil_activo = nombre
+    aplicar_configuracion(perfiles_config[nombre])
+    actualizar_muestra_color_perfil()
+    actualizar_hotkeys()
+
+def exportar_perfil():
+    nombre = combo_perfiles.get().strip()
+    if nombre not in perfiles_config:
+        messagebox.showwarning("Perfil", "Selecciona un perfil guardado para exportar.")
+        return
+
+    ruta = filedialog.asksaveasfilename(
+        title="Exportar perfil",
+        defaultextension=".json",
+        initialfile="perfil.json",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+
+    try:
+        with open(ruta, "w", encoding="utf-8") as archivo:
+            json.dump({
+                "name": nombre,
+                "config": perfiles_config[nombre],
+                "color": perfil_colores.get(nombre, app_accent_color)
+            }, archivo, indent=4)
+        messagebox.showinfo("Perfil exportado", f"Se exportó el perfil {nombre}.")
+    except OSError as error:
+        messagebox.showerror("Error al exportar", str(error))
+
+def importar_perfil():
+    global perfil_activo, perfiles_config
+    ruta = filedialog.askopenfilename(
+        title="Importar perfil",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+
+    try:
+        with open(ruta, "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
+    except (OSError, json.JSONDecodeError) as error:
+        messagebox.showerror("Error al importar", f"No se pudo leer el archivo JSON:\n{error}")
+        return
+
+    nombre = datos.get("name") if isinstance(datos, dict) else None
+    config = datos.get("config") if isinstance(datos, dict) else None
+    color_perfil = datos.get("color", app_accent_color) if isinstance(datos, dict) else app_accent_color
+    if not isinstance(color_perfil, str):
+        messagebox.showerror("Perfil no válido", "El color del perfil no es válido.")
+        return
+    try:
+        root.winfo_rgb(color_perfil)
+    except tk.TclError:
+        messagebox.showerror("Perfil no válido", "El color del perfil no es válido.")
+        return
+    campos_texto = (
+        "afk_tiempo", "afk_key", "afk_accion", "click_tiempo", "click_key",
+        "click_tipo", "lag_key", "lag_duracion", "shuffle_key", "shuffle_delay",
+        "fast_swap_key", "fast_swap_delay", "fast_swap_secondary_key"
+    )
+    campos_booleanos = ("fast_swap_hold", "slot1", "slot2", "slot3", "slot4", "beep")
+    campos_auto_train_booleanos = (
+        "auto_train_slot1", "auto_train_slot2", "auto_train_slot3", "auto_train_slot4",
+        "auto_train_click"
+    )
+    campos_hotkeys_recorder = ("recorder_start_key", "recorder_play_key", "recorder_stop_key")
+
+    if (
+        not isinstance(nombre, str)
+        or not nombre.strip()
+        or not isinstance(config, dict)
+        or any(not isinstance(config.get(campo), str) for campo in campos_texto)
+        or any(not isinstance(config.get(campo), bool) for campo in campos_booleanos)
+        or any(campo in config and not isinstance(config[campo], bool) for campo in campos_auto_train_booleanos)
+        or "auto_train_click_type" in config and not isinstance(config["auto_train_click_type"], str)
+        or "auto_train_delay" in config and not isinstance(config["auto_train_delay"], str)
+        or "auto_train_key" in config and not isinstance(config["auto_train_key"], str)
+        or any(campo in config and not isinstance(config[campo], str) for campo in campos_hotkeys_recorder)
+    ):
+        messagebox.showerror("Perfil no válido", "El archivo no contiene un perfil compatible.")
+        return
+
+    nombre = nombre.strip()
+    atajos = (
+        ("Anti-AFK", config["afk_key"].strip().lower()),
+        ("Autoclicker", config["click_key"].strip().lower()),
+        ("Lag Switch", config["lag_key"].strip().lower()),
+        ("Shuffle Reload", config["shuffle_key"].strip().lower()),
+        ("Fast Gun Swap", config["fast_swap_key"].strip().lower()),
+        ("Auto Train", config.get("auto_train_key", "f5").strip().lower()),
+        ("Recorder - Grabar", config.get("recorder_start_key", "f6").strip().lower()),
+        ("Recorder - Reproducir", config.get("recorder_play_key", "f7").strip().lower()),
+        ("Recorder - Detener", config.get("recorder_stop_key", "f8").strip().lower())
+    )
+    try:
+        conflictos = encontrar_conflictos_hotkeys(atajos)
+    except ValueError as error:
+        messagebox.showerror("Perfil no válido", str(error))
+        return
+    if conflictos:
+        detalle = "\n".join(" y ".join(grupo) for grupo in conflictos)
+        messagebox.showerror("Perfil no válido", f"El perfil repite estos atajos:\n{detalle}")
+        return
+
+    if nombre in perfiles_config and not messagebox.askyesno(
+        "Reemplazar perfil",
+        f"Ya existe un perfil llamado {nombre}. ¿Quieres reemplazarlo?"
+    ):
+        return
+
+    detener_todo()
+    perfiles_config[nombre] = config
+    perfil_colores[nombre] = color_perfil.lower()
+    perfil_activo = nombre
+    combo_perfiles.configure(values=sorted(perfiles_config))
+    combo_perfiles.set(nombre)
+    aplicar_configuracion(config)
+    actualizar_muestra_color_perfil()
+    actualizar_hotkeys()
+
+def cargar_configuracion():
+    global perfil_activo, perfiles_config, roblox_profile_username, app_accent_color
+    global app_theme_name, app_ui_scale, perfil_colores, orden_secciones, recorder_macros
+    global sonidos_activos, avisos_recorder_activos
+    datos = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                datos = json.load(f)
+        except Exception:
+            pass
+
+    if isinstance(datos, dict) and isinstance(datos.get("profiles"), dict):
+        perfiles_config = {
+            nombre: config for nombre, config in datos["profiles"].items()
+            if isinstance(nombre, str) and isinstance(config, dict)
+        }
+        perfil_activo = datos.get("active_profile", "Predeterminado")
+        if perfil_activo not in perfiles_config:
+            perfil_activo = next(iter(perfiles_config), "Predeterminado")
+    else:
+        perfil_activo = "Predeterminado"
+        perfiles_config = {perfil_activo: datos if isinstance(datos, dict) else {}}
+
+    var_intro_animacion.set(bool(datos.get("intro_animation", True)) if isinstance(datos, dict) else True)
+    roblox_profile_username = (
+        datos.get("roblox_username", "")
+        if isinstance(datos, dict) and isinstance(datos.get("roblox_username", ""), str)
+        else ""
+    )
+    color_guardado = (
+        datos.get("app_accent_color", "#00ffcc")
+        if isinstance(datos, dict) and isinstance(datos.get("app_accent_color", "#00ffcc"), str)
+        else "#00ffcc"
+    )
+    try:
+        root.winfo_rgb(color_guardado)
+        app_accent_color = color_guardado.lower()
+    except tk.TclError:
+        app_accent_color = "#00ffcc"
+    tema_guardado = datos.get("app_theme", "GGSPQE") if isinstance(datos, dict) else "GGSPQE"
+    app_theme_name = tema_guardado if tema_guardado in APP_THEMES else "GGSPQE"
+    factor_guardado = datos.get("app_ui_scale", 1.0) if isinstance(datos, dict) else 1.0
+    app_ui_scale = factor_guardado if factor_guardado in (0.9, 1.0, 1.15) else 1.0
+    colores_guardados = datos.get("profile_colors", {}) if isinstance(datos, dict) else {}
+    perfil_colores = {}
+    if isinstance(colores_guardados, dict):
+        for nombre, color in colores_guardados.items():
+            if isinstance(nombre, str) and isinstance(color, str):
+                try:
+                    root.winfo_rgb(color)
+                    perfil_colores[nombre] = color.lower()
+                except tk.TclError:
+                    pass
+    orden_guardado = datos.get("menu_order", []) if isinstance(datos, dict) else []
+    secciones_validas = ("Roblox", "Juegos", "Texturas", "Recorder", "Preferencias")
+    orden_secciones = [
+        seccion for seccion in orden_guardado
+        if isinstance(seccion, str) and seccion in secciones_validas
+    ] if isinstance(orden_guardado, list) else []
+    orden_secciones = list(dict.fromkeys(orden_secciones))
+    orden_secciones.extend(seccion for seccion in secciones_validas if seccion not in orden_secciones)
+    macros_guardados = datos.get("recorder_macros", {}) if isinstance(datos, dict) else {}
+    recorder_macros = {}
+    if isinstance(macros_guardados, dict):
+        for nombre, eventos in macros_guardados.items():
+            if isinstance(nombre, str) and nombre.strip():
+                eventos_validados = validar_eventos_recorder(eventos)
+                if eventos_validados:
+                    recorder_macros[nombre] = eventos_validados
+    sonidos_activos = bool(datos.get("app_sounds_enabled", True)) if isinstance(datos, dict) else True
+    avisos_recorder_activos = bool(datos.get("recorder_notifications", True)) if isinstance(datos, dict) else True
+    var_sonidos_app.set(sonidos_activos)
+    var_avisos_recorder.set(avisos_recorder_activos)
+    entry_roblox_username.insert(0, roblox_profile_username)
+
+    aplicar_configuracion(perfiles_config[perfil_activo])
+    combo_perfiles.configure(values=sorted(perfiles_config))
+    combo_perfiles.set(perfil_activo)
+    combo_tema_app.set(app_theme_name)
+    combo_escala_app.set({0.9: "Compacta", 1.0: "Normal", 1.15: "Grande"}[app_ui_scale])
+    color_acento_guardado = app_accent_color
+    aplicar_tema_app(app_theme_name)
+    if color_acento_guardado != APP_THEMES[app_theme_name]["accent"]:
+        aplicar_color_app(color_acento_guardado)
+    aplicar_escala_app(app_ui_scale)
+    actualizar_muestra_color_perfil()
+    actualizar_lista_orden_menu()
+    actualizar_lista_macros()
+    aplicar_orden_menu()
+    if not avisos_recorder_activos:
+        lbl_recorder_estado.pack_forget()
+
+def al_cerrar_app():
+    global anti_afk_activo, autoclicker_activo, lag_switch_activo
+    global fast_gun_swap_activo, fast_gun_swap_stop
+    anti_afk_activo = False
+    autoclicker_activo = False
+    lag_switch_activo = False
+    fast_gun_swap_activo = False
+    if fast_gun_swap_stop:
+        fast_gun_swap_stop.set()
+    if auto_train_stop:
+        auto_train_stop.set()
+    lag_switch_stop.set()
+    if shuffle_stop:
+        shuffle_stop.set()
+    detener_recorder()
+    cancelar_captura_hotkey()
+    
+    aplicar_regla_firewall(activar=False)
+    guardar_configuracion()
+    try:
+        keyboard.unhook_all()
+    except Exception:
+        pass
+    root.destroy()
+
+# --- NAVEGACIÓN Y MENÚ DESPLEGABLE ---
+
+def toggle_menu_juegos():
+    global menu_juegos_desplegado
+    if menu_juegos_desplegado:
+        frame_sub_juegos.pack_forget()
+        btn_juegos.config(text="▶ Juegos")
+        menu_juegos_desplegado = False
+    else:
+        frame_sub_juegos.pack(after=btn_juegos, fill=tk.X, padx=10, pady=2)
+        btn_juegos.config(text="▼ Juegos")
+        menu_juegos_desplegado = True
+
+def mostrar_seccion(seccion):
+    frame_roblox.pack_forget()
+    frame_texturas.pack_forget()
+    frame_prison_life.pack_forget()
+    frame_larping_legends.pack_forget()
+    frame_recorder.pack_forget()
+    frame_acerca.pack_forget()
+
+    if seccion == "Roblox":
+        frame_roblox.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="Sección actual: Roblox (Utilidades Pro)")
+    elif seccion == "Prison Life":
+        frame_prison_life.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="Sección actual: Prison Life (Shuffle Reload)")
+    elif seccion == "Larping Legends":
+        frame_larping_legends.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="Sección actual: Larping Legends")
+    elif seccion == "Texturas":
+        frame_texturas.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="Sección actual: Gestor de Texturas (FPS Boost)")
+    elif seccion == "Recorder":
+        frame_recorder.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="Recorder de teclado y mouse")
+    elif seccion == "Acerca de":
+        frame_acerca.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="Preferencias")
+    else:
+        label_titulo_contenido.config(text=f"Sección actual: {seccion}")
+
+def actualizar_panel_estado():
+    estados = (
+        ("Anti-AFK", anti_afk_activo, entry_key_afk),
+        ("Autoclicker", autoclicker_activo, entry_key_click),
+        ("Lag Switch", lag_switch_activo, entry_key_lag),
+        ("Shuffle Reload", ejecutando_shuffle, entry_key_shuffle),
+        ("Fast Gun Swap", fast_gun_swap_activo, entry_fast_swap_key)
+    )
+    linea1 = "  |  ".join(
+        f"{nombre}: {'ACTIVA' if activo else 'DETENIDA'} [{entrada.get().strip().upper()}]"
+        for nombre, activo, entrada in estados[:3]
+    )
+    linea2 = "  |  ".join(
+        f"{nombre}: {'ACTIVA' if activo else 'DETENIDA'} [{entrada.get().strip().upper()}]"
+        for nombre, activo, entrada in estados[3:]
+    )
+    label_estado_funciones.config(text=f"{linea1}\n{linea2}")
+    root.after(250, actualizar_panel_estado)
+
+# --- INTERFAZ GRÁFICA PRINCIPAL ---
+
+root = TkinterDnD.Tk() if TkinterDnD is not None else tk.Tk()
+root.title("GGSPQE - Roblox Utility Pro")
+
+ancho_ventana = 640
+alto_ventana = 760
+
+ancho_pantalla = root.winfo_screenwidth()
+alto_pantalla = root.winfo_screenheight()
+
+pos_x = (ancho_pantalla // 2) - (ancho_ventana // 2)
+pos_y = (alto_pantalla // 2) - (alto_ventana // 2)
+
+root.geometry(f"{ancho_ventana}x{alto_ventana}+{pos_x}+{pos_y}")
+root.minsize(ancho_ventana, 680)
+escala_tk_base = float(root.tk.call("tk", "scaling"))
+root.resizable(True, True)
+root.config(bg="#121212")
+root.protocol("WM_DELETE_WINDOW", al_cerrar_app)
+
+# Variables booleanas Tkinter
+var_slot1 = tk.BooleanVar(value=True)
+var_slot2 = tk.BooleanVar(value=True)
+var_slot3 = tk.BooleanVar(value=True)
+var_slot4 = tk.BooleanVar(value=False)
+var_beep = tk.BooleanVar(value=True)
+var_fast_swap_hold = tk.BooleanVar(value=False)
+var_intro_animacion = tk.BooleanVar(value=True)
+var_sonidos_app = tk.BooleanVar(value=True)
+var_avisos_recorder = tk.BooleanVar(value=True)
+var_auto_train_slot1 = tk.BooleanVar(value=True)
+var_auto_train_slot2 = tk.BooleanVar(value=True)
+var_auto_train_slot3 = tk.BooleanVar(value=True)
+var_auto_train_slot4 = tk.BooleanVar(value=True)
+var_auto_train_click = tk.BooleanVar(value=True)
+
+# Panel Superior
+frame_superior = tk.Frame(root, height=50, bg="#1e1e1e")
+frame_superior.pack(side=tk.TOP, fill=tk.X)
+
+frame_perfil_roblox = tk.Frame(frame_superior, bg="#1e1e1e")
+frame_perfil_roblox.pack(side=tk.LEFT, padx=(10, 0), pady=1)
+lbl_foto_perfil = tk.Label(
+    frame_perfil_roblox,
+    text="R",
+    width=3,
+    height=2,
+    bg="#2d2d2d",
+    fg="#00ffcc",
+    font=("Arial", 12, "bold")
+)
+lbl_foto_perfil.pack(side=tk.LEFT, padx=(0, 7))
+lbl_saludo_perfil = tk.Label(
+    frame_perfil_roblox,
+    text="Vincula tu perfil de Roblox",
+    bg="#1e1e1e",
+    fg="white",
+    font=("Arial", 9, "bold")
+)
+lbl_saludo_perfil.pack(side=tk.LEFT)
+
+entry_buscar = tk.Entry(frame_superior, width=22, bg="#2d2d2d", fg="white", insertbackground="white", bd=0)
+entry_buscar.pack(side=tk.RIGHT, padx=15, pady=12)
+
+btn_buscar = tk.Button(frame_superior, text="Buscar", bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_buscar.pack(side=tk.RIGHT, padx=5, pady=10)
+
+label_buscador_txt = tk.Label(frame_superior, text="GGSPQE", bg="#1e1e1e", fg="white", font=("Arial", 10, "bold"))
+label_buscador_txt.pack(side=tk.LEFT, padx=15, pady=12)
+
+if not es_administrador():
+    lbl_admin = tk.Label(frame_superior, text="⚠️ Ejecuta como Admin para Lag Switch", bg="#1e1e1e", fg="#ffcc00", font=("Arial", 8, "bold"))
+    lbl_admin.pack(side=tk.LEFT, padx=10)
+
+# Panel Izquierdo
+frame_izquierdo = tk.Frame(root, width=160, bg="#181818")
+frame_izquierdo.pack(side=tk.LEFT, fill=tk.Y)
+frame_izquierdo.pack_propagate(False)
+
+btn_roblox = tk.Button(frame_izquierdo, text="Roblox General", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=lambda: mostrar_seccion("Roblox"))
+btn_roblox.pack(pady=10, padx=10)
+
+btn_juegos = tk.Button(frame_izquierdo, text="▶ Juegos", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_menu_juegos)
+btn_juegos.pack(pady=5, padx=10)
+
+frame_sub_juegos = tk.Frame(frame_izquierdo, bg="#181818")
+btn_prison_life = tk.Button(frame_sub_juegos, text="• Prison Life", width=14, bg="#222222", fg="#00ffcc", activebackground="#333333", activeforeground="white", bd=0, command=lambda: mostrar_seccion("Prison Life"))
+btn_prison_life.pack(pady=2, padx=15)
+btn_larping_legends = tk.Button(frame_sub_juegos, text="• Larping Legends", width=14, bg="#222222", fg="#00ffcc", activebackground="#333333", activeforeground="white", bd=0, command=lambda: mostrar_seccion("Larping Legends"))
+btn_larping_legends.pack(pady=2, padx=15)
+
+btn_texturas = tk.Button(frame_izquierdo, text="Texturas (FPS)", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=lambda: mostrar_seccion("Texturas"))
+btn_texturas.pack(pady=5, padx=10)
+
+btn_recorder = tk.Button(frame_izquierdo, text="Recorder", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=lambda: mostrar_seccion("Recorder"))
+btn_recorder.pack(pady=5, padx=10)
+
+btn_opcion3 = tk.Button(frame_izquierdo, text="Acerca de", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=lambda: mostrar_seccion("Acerca de"))
+btn_opcion3.pack(pady=5, padx=10)
+
+btn_detener_todo = tk.Button(frame_izquierdo, text="Detener todo", width=16, bg="#552222", fg="white", activebackground="#773333", activeforeground="white", bd=0, command=detener_todo)
+btn_detener_todo.pack(pady=(20, 5), padx=10)
+
+# ÁREA PRINCIPAL
+frame_principal = tk.Frame(root, bg="#121212")
+frame_principal.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+
+label_titulo_contenido = tk.Label(frame_principal, text="Sección actual: Roblox (Utilidades Pro)", font=("Arial", 11, "bold"), bg="#121212", fg="white")
+label_titulo_contenido.pack(pady=(12, 0))
+
+label_estado_funciones = tk.Label(
+    frame_principal,
+    text="",
+    justify=tk.LEFT,
+    anchor="w",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 8)
+)
+label_estado_funciones.pack(fill=tk.X, padx=12, pady=(3, 0))
+
+# --- PANEL ROBLOX GENERAL ---
+frame_roblox = tk.Frame(frame_principal, bg="#121212")
+frame_roblox.pack(expand=True, fill=tk.BOTH)
+
+contenedor_central = tk.Frame(frame_roblox, bg="#121212")
+contenedor_central.place(relx=0.5, rely=0.5, anchor="center")
+
+# Anti-AFK
+tk.Label(contenedor_central, text="Configuración Anti-AFK", bg="#121212", fg="#00ffcc", font=("Arial", 9, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 4))
+entry_afk_tiempo = tk.Entry(contenedor_central, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_afk_tiempo.insert(0, "60")
+tk.Label(contenedor_central, text="Intervalo (s):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=1, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_afk_tiempo.grid(row=1, column=1, pady=2, sticky="w")
+
+entry_key_afk = tk.Entry(contenedor_central, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_afk.insert(0, "f1")
+tk.Label(contenedor_central, text="Tecla rápida (ej: f1):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=2, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_key_afk.grid(row=2, column=1, pady=2, sticky="w")
+btn_captura_afk = tk.Button(contenedor_central, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_afk.config(command=lambda: iniciar_captura_hotkey(entry_key_afk, btn_captura_afk))
+btn_captura_afk.grid(row=2, column=2, padx=(5, 0), pady=2)
+
+combo_accion_afk = ttk.Combobox(contenedor_central, values=["Saltar (Espacio)", "Caminar (W)", "Mover Cámara"], width=14, state="readonly")
+combo_accion_afk.set("Saltar (Espacio)")
+tk.Label(contenedor_central, text="Acción:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=3, column=0, padx=(0, 8), pady=2, sticky="e")
+combo_accion_afk.grid(row=3, column=1, pady=2, sticky="w")
+
+btn_antiafk = tk.Button(contenedor_central, text="Activar Anti-AFK", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_anti_afk)
+btn_antiafk.grid(row=4, column=0, columnspan=2, pady=6)
+
+tk.Frame(contenedor_central, height=1, width=280, bg="#2d2d2d").grid(row=5, column=0, columnspan=2, pady=4)
+
+# Autoclicker
+tk.Label(contenedor_central, text="Configuración Autoclicker", bg="#121212", fg="#00ffcc", font=("Arial", 9, "bold")).grid(row=6, column=0, columnspan=2, pady=(0, 4))
+entry_click_tiempo = tk.Entry(contenedor_central, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_click_tiempo.insert(0, "100")
+tk.Label(contenedor_central, text="Intervalo (ms):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=7, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_click_tiempo.grid(row=7, column=1, pady=2, sticky="w")
+
+entry_key_click = tk.Entry(contenedor_central, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_click.insert(0, "f2")
+tk.Label(contenedor_central, text="Tecla rápida (ej: f2):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=8, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_key_click.grid(row=8, column=1, pady=2, sticky="w")
+btn_captura_click = tk.Button(contenedor_central, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_click.config(command=lambda: iniciar_captura_hotkey(entry_key_click, btn_captura_click))
+btn_captura_click.grid(row=8, column=2, padx=(5, 0), pady=2)
+
+combo_tipo_clic = ttk.Combobox(contenedor_central, values=["Clic Izquierdo", "Clic Derecho"], width=14, state="readonly")
+combo_tipo_clic.set("Clic Izquierdo")
+tk.Label(contenedor_central, text="Botón del mouse:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=9, column=0, padx=(0, 8), pady=2, sticky="e")
+combo_tipo_clic.grid(row=9, column=1, pady=2, sticky="w")
+
+btn_autoclicker = tk.Button(contenedor_central, text="Activar Autoclicker", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_autoclicker)
+btn_autoclicker.grid(row=10, column=0, columnspan=2, pady=6)
+
+tk.Frame(contenedor_central, height=1, width=280, bg="#2d2d2d").grid(row=11, column=0, columnspan=2, pady=4)
+
+# Lag Switcher
+tk.Label(contenedor_central, text="Configuración Lag Switcher", bg="#121212", fg="#00ffcc", font=("Arial", 9, "bold")).grid(row=12, column=0, columnspan=2, pady=(0, 4))
+entry_lag_duracion = tk.Entry(contenedor_central, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_lag_duracion.insert(0, "3000")
+tk.Label(contenedor_central, text="Duración (ms) [0=Hold]:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=13, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_lag_duracion.grid(row=13, column=1, pady=2, sticky="w")
+
+entry_key_lag = tk.Entry(contenedor_central, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_lag.insert(0, "f3")
+tk.Label(contenedor_central, text="Tecla rápida (ej: f3):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=14, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_key_lag.grid(row=14, column=1, pady=2, sticky="w")
+btn_captura_lag = tk.Button(contenedor_central, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_lag.config(command=lambda: iniciar_captura_hotkey(entry_key_lag, btn_captura_lag))
+btn_captura_lag.grid(row=14, column=2, padx=(5, 0), pady=2)
+
+btn_lagswitch = tk.Button(contenedor_central, text="Activar Lag Switch", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_lag_switch)
+btn_lagswitch.grid(row=15, column=0, columnspan=2, pady=6)
+
+btn_aplicar_hotkeys = tk.Button(contenedor_central, text="Guardar Teclas", width=22, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=actualizar_hotkeys)
+btn_aplicar_hotkeys.grid(row=16, column=0, columnspan=2, pady=10)
+
+# --- PANEL PRISON LIFE (SHUFFLE RELOAD) ---
+frame_prison_life = tk.Frame(frame_principal, bg="#121212")
+frame_larping_legends = tk.Frame(frame_principal, bg="#121212")
+frame_recorder = tk.Frame(frame_principal, bg="#121212")
+
+contenedor_recorder = tk.Frame(frame_recorder, bg="#121212")
+contenedor_recorder.place(relx=0.5, rely=0.5, anchor="center")
+tk.Label(
+    contenedor_recorder,
+    text="Recorder de teclado y mouse",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Arial", 11, "bold")
+).pack(pady=(0, 8))
+tk.Label(
+    contenedor_recorder,
+    text="Cambia a Roblox para grabar; al salir del juego, la grabación se detiene.\n"
+         "La reproducción usa posiciones absolutas del cursor y la misma resolución.",
+    bg="#121212",
+    fg="#aaaaaa",
+    justify=tk.CENTER,
+    font=("Arial", 9)
+).pack(pady=(0, 12))
+frame_recorder_botones = tk.Frame(contenedor_recorder, bg="#121212")
+frame_recorder_botones.pack(pady=4)
+tk.Button(
+    frame_recorder_botones,
+    text="Grabar",
+    width=12,
+    bg="#552222",
+    fg="white",
+    activebackground="#773333",
+    activeforeground="white",
+    bd=0,
+    command=iniciar_grabacion_recorder
+).pack(side=tk.LEFT, padx=4)
+tk.Button(
+    frame_recorder_botones,
+    text="Detener",
+    width=12,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=detener_recorder
+).pack(side=tk.LEFT, padx=4)
+tk.Button(
+    frame_recorder_botones,
+    text="Reproducir",
+    width=12,
+    bg="#1f4037",
+    fg="white",
+    activebackground="#2f5f52",
+    activeforeground="white",
+    bd=0,
+    command=reproducir_recorder
+).pack(side=tk.LEFT, padx=4)
+
+recorder_hotkey_entries = {}
+frame_recorder_hotkeys = tk.Frame(contenedor_recorder, bg="#121212")
+frame_recorder_hotkeys.pack(pady=8)
+for indice, (accion, etiqueta, valor_predeterminado) in enumerate((
+    ("start", "Tecla para grabar:", "f6"),
+    ("play", "Tecla para reproducir:", "f7"),
+    ("stop", "Tecla para detener:", "f8")
+)):
+    tk.Label(
+        frame_recorder_hotkeys,
+        text=etiqueta,
+        width=22,
+        anchor="e",
+        bg="#121212",
+        fg="#aaaaaa",
+        font=("Arial", 9)
+    ).grid(row=indice, column=0, padx=(0, 8), pady=3, sticky="e")
+    entrada_hotkey = tk.Entry(
+        frame_recorder_hotkeys,
+        width=12,
+        bg="#2d2d2d",
+        fg="white",
+        insertbackground="white",
+        bd=0,
+        justify="center"
+    )
+    entrada_hotkey.insert(0, valor_predeterminado)
+    entrada_hotkey.grid(row=indice, column=1, pady=3, sticky="w")
+    recorder_hotkey_entries[accion] = entrada_hotkey
+    boton_hotkey = tk.Button(
+        frame_recorder_hotkeys,
+        text="Asignar",
+        width=8,
+        bg="#2d2d2d",
+        fg="white",
+        activebackground="#3d3d3d",
+        activeforeground="white",
+        bd=0
+    )
+    boton_hotkey.config(
+        command=lambda entrada=entrada_hotkey, boton=boton_hotkey:
+            iniciar_captura_hotkey(entrada, boton)
+    )
+    boton_hotkey.grid(row=indice, column=2, padx=(6, 0), pady=3)
+
+tk.Label(
+    contenedor_recorder,
+    text="Macros guardadas",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Arial", 9, "bold")
+).pack(pady=(8, 3))
+frame_macro_nombre = tk.Frame(contenedor_recorder, bg="#121212")
+frame_macro_nombre.pack(pady=3)
+tk.Label(
+    frame_macro_nombre,
+    text="Nombre:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(side=tk.LEFT, padx=(0, 6))
+entry_nombre_macro = tk.Entry(
+    frame_macro_nombre,
+    width=20,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0
+)
+entry_nombre_macro.pack(side=tk.LEFT)
+combo_macros_recorder = ttk.Combobox(
+    contenedor_recorder,
+    width=30,
+    state="readonly"
+)
+combo_macros_recorder.pack(pady=3)
+frame_acciones_macro = tk.Frame(contenedor_recorder, bg="#121212")
+frame_acciones_macro.pack(pady=3)
+for texto, comando in (
+    ("Guardar", guardar_macro_recorder),
+    ("Cargar", cargar_macro_recorder),
+    ("Exportar", exportar_macro_recorder),
+    ("Importar", importar_macro_recorder)
+):
+    tk.Button(
+        frame_acciones_macro,
+        text=texto,
+        width=9,
+        bg="#2d2d2d",
+        fg="white",
+        activebackground="#3d3d3d",
+        activeforeground="white",
+        bd=0,
+        command=comando
+    ).pack(side=tk.LEFT, padx=2)
+
+lbl_recorder_estado = tk.Label(
+    contenedor_recorder,
+    text="Sin grabaciones en esta sesión.",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9, "bold")
+)
+lbl_recorder_estado.pack(pady=8)
+
+contenedor_larping_legends = tk.Frame(frame_larping_legends, bg="#121212")
+contenedor_larping_legends.place(relx=0.5, rely=0.5, anchor="center")
+tk.Label(
+    contenedor_larping_legends,
+    text="Larping Legends - Auto Train",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Arial", 10, "bold")
+).pack(pady=(0, 10))
+
+frame_auto_train_slots = tk.Frame(contenedor_larping_legends, bg="#121212")
+frame_auto_train_slots.pack(pady=4)
+for texto, variable in (
+    ("Slot 1", var_auto_train_slot1),
+    ("Slot 2", var_auto_train_slot2),
+    ("Slot 3", var_auto_train_slot3),
+    ("Slot 4", var_auto_train_slot4)
+):
+    tk.Checkbutton(
+        frame_auto_train_slots,
+        text=texto,
+        variable=variable,
+        bg="#121212",
+        fg="white",
+        selectcolor="#2d2d2d",
+        activebackground="#121212",
+        activeforeground="white"
+    ).pack(side=tk.LEFT, padx=3)
+
+tk.Checkbutton(
+    contenedor_larping_legends,
+    text="Clic automático",
+    variable=var_auto_train_click,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(pady=4)
+
+frame_auto_train_options = tk.Frame(contenedor_larping_legends, bg="#121212")
+frame_auto_train_options.pack(pady=4)
+tk.Label(
+    frame_auto_train_options,
+    text="Intervalo (ms):",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(side=tk.LEFT, padx=(0, 8))
+entry_auto_train_delay = tk.Entry(
+    frame_auto_train_options,
+    width=10,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0,
+    justify="center"
+)
+entry_auto_train_delay.insert(0, "100")
+entry_auto_train_delay.pack(side=tk.LEFT)
+combo_auto_train_click_type = ttk.Combobox(
+    frame_auto_train_options,
+    values=["Clic Izquierdo", "Clic Derecho"],
+    width=15,
+    state="readonly"
+)
+combo_auto_train_click_type.set("Clic Izquierdo")
+combo_auto_train_click_type.pack(side=tk.LEFT, padx=(8, 0))
+
+frame_auto_train_hotkey = tk.Frame(contenedor_larping_legends, bg="#121212")
+frame_auto_train_hotkey.pack(pady=4)
+tk.Label(
+    frame_auto_train_hotkey,
+    text="Tecla de inicio/parada:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(side=tk.LEFT, padx=(0, 8))
+entry_auto_train_key = tk.Entry(
+    frame_auto_train_hotkey,
+    width=12,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0,
+    justify="center"
+)
+entry_auto_train_key.insert(0, "f5")
+entry_auto_train_key.pack(side=tk.LEFT)
+btn_captura_auto_train = tk.Button(
+    frame_auto_train_hotkey,
+    text="Asignar",
+    width=8,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=lambda: iniciar_captura_hotkey(entry_auto_train_key, btn_captura_auto_train)
+)
+btn_captura_auto_train.pack(side=tk.LEFT, padx=(6, 0))
+
+lbl_auto_train_estado = tk.Label(
+    contenedor_larping_legends,
+    text="Auto Train: detenido",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9, "bold")
+)
+lbl_auto_train_estado.pack(pady=4)
+btn_auto_train = tk.Button(
+    contenedor_larping_legends,
+    text="Iniciar Auto Train",
+    width=22,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=toggle_auto_train
+)
+btn_auto_train.pack(pady=6)
+
+contenedor_pl = tk.Frame(frame_prison_life, bg="#121212")
+contenedor_pl.place(relx=0.5, rely=0.5, anchor="center")
+
+tk.Label(contenedor_pl, text="Prison Life - Shuffle Reload", bg="#121212", fg="#00ffcc", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
+
+entry_key_shuffle = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_shuffle.insert(0, "r")
+tk.Label(contenedor_pl, text="Tecla rápida (ej: r):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=1, column=0, padx=(0, 8), pady=4, sticky="e")
+entry_key_shuffle.grid(row=1, column=1, pady=4, sticky="w")
+btn_captura_shuffle = tk.Button(contenedor_pl, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_shuffle.config(command=lambda: iniciar_captura_hotkey(entry_key_shuffle, btn_captura_shuffle))
+btn_captura_shuffle.grid(row=1, column=2, padx=(5, 0), pady=4)
+
+entry_shuffle_delay = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_shuffle_delay.insert(0, "50")
+tk.Label(contenedor_pl, text="Delay (ms):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=2, column=0, padx=(0, 8), pady=4, sticky="e")
+entry_shuffle_delay.grid(row=2, column=1, pady=4, sticky="w")
+
+# Selección de Slots de Armas
+frame_slots = tk.Frame(contenedor_pl, bg="#121212")
+frame_slots.grid(row=3, column=0, columnspan=2, pady=8)
+
+tk.Checkbutton(frame_slots, text="Slot 1", variable=var_slot1, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+tk.Checkbutton(frame_slots, text="Slot 2", variable=var_slot2, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+tk.Checkbutton(frame_slots, text="Slot 3", variable=var_slot3, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+tk.Checkbutton(frame_slots, text="Slot 4", variable=var_slot4, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+
+# Sonido de Confirmación
+tk.Checkbutton(contenedor_pl, text="Sonido de confirmación (Beep)", variable=var_beep, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").grid(row=4, column=0, columnspan=2, pady=4)
+
+btn_probar_shuffle = tk.Button(contenedor_pl, text="Ejecutar Shuffle Reload", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=ejecutar_shuffle_reload)
+btn_probar_shuffle.grid(row=5, column=0, columnspan=2, pady=10)
+
+btn_guardar_pl = tk.Button(contenedor_pl, text="Guardar Configuración", width=22, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=actualizar_hotkeys)
+btn_guardar_pl.grid(row=6, column=0, columnspan=2, pady=4)
+
+tk.Label(contenedor_pl, text="Fast Gun Swap", bg="#121212", fg="#00ffcc", font=("Arial", 10, "bold")).grid(row=7, column=0, columnspan=2, pady=(8, 4))
+
+entry_fast_swap_key = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_fast_swap_key.insert(0, "f4")
+tk.Label(contenedor_pl, text="Tecla de inicio (F4):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=8, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_fast_swap_key.grid(row=8, column=1, pady=2, sticky="w")
+btn_captura_fast_swap = tk.Button(contenedor_pl, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_fast_swap.config(command=lambda: iniciar_captura_hotkey(entry_fast_swap_key, btn_captura_fast_swap))
+btn_captura_fast_swap.grid(row=8, column=2, padx=(5, 0), pady=2)
+
+entry_fast_swap_delay = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_fast_swap_delay.insert(0, "50")
+tk.Label(contenedor_pl, text="Delay de disparo (ms):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=9, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_fast_swap_delay.grid(row=9, column=1, pady=2, sticky="w")
+
+entry_fast_swap_secondary = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_fast_swap_secondary.insert(0, "shift")
+tk.Label(contenedor_pl, text="Tecla secundaria:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=10, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_fast_swap_secondary.grid(row=10, column=1, pady=2, sticky="w")
+
+tk.Checkbutton(contenedor_pl, text="Modo mantener tecla secundaria (desmarcado = alternar)", variable=var_fast_swap_hold, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").grid(row=11, column=0, columnspan=2, pady=4)
+
+lbl_fast_gun_swap = tk.Label(contenedor_pl, text="Fast Gun Swap: detenido", bg="#121212", fg="#aaaaaa", font=("Arial", 9, "bold"))
+lbl_fast_gun_swap.grid(row=12, column=0, columnspan=2, pady=6)
+
+tk.Label(contenedor_pl, text="Perfil:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=13, column=0, padx=(0, 8), pady=2, sticky="e")
+combo_perfiles = ttk.Combobox(contenedor_pl, width=14, state="readonly")
+combo_perfiles.grid(row=13, column=1, pady=2, sticky="w")
+
+entry_perfil_nombre = tk.Entry(contenedor_pl, width=14, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_perfil_nombre.grid(row=14, column=0, pady=4, sticky="e")
+frame_acciones_perfil = tk.Frame(contenedor_pl, bg="#121212")
+frame_acciones_perfil.grid(row=14, column=1, pady=4, sticky="w")
+tk.Button(frame_acciones_perfil, text="Guardar", width=7, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=guardar_perfil).pack(side=tk.LEFT, padx=2)
+tk.Button(frame_acciones_perfil, text="Cargar", width=7, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=cargar_perfil).pack(side=tk.LEFT, padx=2)
+tk.Button(frame_acciones_perfil, text="Exportar", width=7, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=exportar_perfil).pack(side=tk.LEFT, padx=2)
+tk.Button(frame_acciones_perfil, text="Importar", width=7, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=importar_perfil).pack(side=tk.LEFT, padx=2)
+
+# --- PANEL TEXTURAS ---
+frame_texturas = tk.Frame(frame_principal, bg="#121212")
+
+contenedor_tex = tk.Frame(frame_texturas, bg="#121212")
+contenedor_tex.place(relx=0.5, rely=0.5, anchor="center")
+
+tk.Label(contenedor_tex, text="Gestor de Texturas de Roblox", bg="#121212", fg="#00ffcc", font=("Arial", 10, "bold")).grid(row=0, column=0, pady=(0, 10))
+tk.Label(contenedor_tex, text="Optimiza las texturas del juego para maximizar tus FPS.", bg="#121212", fg="#aaaaaa", font=("Arial", 8)).grid(row=1, column=0, pady=(0, 15))
+
+btn_eliminar_tex = tk.Button(contenedor_tex, text="Eliminar Texturas (FPS Boost)", width=28, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=eliminar_texturas_roblox)
+btn_eliminar_tex.grid(row=2, column=0, pady=6)
+
+btn_eliminar_agua = tk.Button(contenedor_tex, text="Eliminar Textura del Agua", width=28, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=eliminar_agua_roblox)
+btn_eliminar_agua.grid(row=3, column=0, pady=6)
+
+tk.Label(contenedor_tex, text="Categoría personalizada:", bg="#121212", fg="#aaaaaa", font=("Arial", 9)).grid(row=4, column=0, pady=(8, 2))
+combo_categoria_textura = ttk.Combobox(
+    contenedor_tex,
+    values=tuple(TEXTURE_CATEGORIES),
+    width=24,
+    state="readonly"
+)
+combo_categoria_textura.set("Cielo")
+combo_categoria_textura.grid(row=5, column=0, pady=2)
+
+zona_drop_texturas = tk.Frame(
+    contenedor_tex,
+    width=140,
+    height=140,
+    bg="#181818",
+    highlightbackground="#00aa66",
+    highlightthickness=1,
+    relief="flat"
+)
+zona_drop_texturas.grid(row=6, column=0, pady=8)
+zona_drop_texturas.grid_propagate(False)
+if es_administrador():
+    texto_drop_texturas = "Arrastre bloqueado como administrador\nUsa los botones de selección"
+else:
+    texto_drop_texturas = "Suelta texturas aquí" if DND_FILES else "Arrastrar y soltar no disponible"
+label_drop_texturas = tk.Label(
+    zona_drop_texturas,
+    text=texto_drop_texturas,
+    bg="#181818",
+    fg="#a8cbb8",
+    justify=tk.CENTER,
+    wraplength=120,
+    font=("Arial", 9)
+)
+label_drop_texturas.pack(expand=True, fill=tk.BOTH, padx=8, pady=8)
+if DND_FILES:
+    for widget_drop in (zona_drop_texturas, label_drop_texturas):
+        widget_drop.drop_target_register(DND_FILES)
+        widget_drop.dnd_bind("<<Drop>>", manejar_drop_texturas)
+
+btn_instalar_paquete_tex = tk.Button(
+    contenedor_tex,
+    text="Instalar categoría seleccionada",
+    width=30,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=instalar_paquete_texturas
+)
+btn_instalar_paquete_tex.grid(row=7, column=0, pady=6)
+
+btn_seleccionar_archivos_tex = tk.Button(
+    contenedor_tex,
+    text="Seleccionar archivos...",
+    width=30,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=seleccionar_archivos_texturas
+)
+btn_seleccionar_archivos_tex.grid(row=8, column=0, pady=6)
+
+btn_restaurar_categoria = tk.Button(
+    contenedor_tex,
+    text="Restaurar categoría",
+    width=28,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=restaurar_categoria_texturas
+)
+btn_restaurar_categoria.grid(row=9, column=0, pady=6)
+
+btn_restaurar_tex = tk.Button(contenedor_tex, text="Restaurar Texturas Originales", width=28, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=restaurar_texturas_roblox)
+btn_restaurar_tex.grid(row=10, column=0, pady=12)
+
+frame_acerca = tk.Frame(frame_principal, bg="#121212")
+tk.Label(
+    frame_acerca,
+    text="Apariencia",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Arial", 10, "bold")
+).pack(anchor="w", padx=24, pady=(20, 4))
+frame_color_app = tk.Frame(frame_acerca, bg="#121212")
+frame_color_app.pack(anchor="w", padx=24, pady=(4, 16))
+tk.Label(
+    frame_color_app,
+    text="Color de acento:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(side=tk.LEFT, padx=(0, 8))
+lbl_muestra_color = tk.Label(
+    frame_color_app,
+    text="   ",
+    bg=app_accent_color,
+    relief="solid",
+    bd=1
+)
+lbl_muestra_color.pack(side=tk.LEFT, padx=(0, 8))
+tk.Button(
+    frame_color_app,
+    text="Elegir color...",
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=elegir_color_app
+).pack(side=tk.LEFT)
+tk.Label(
+    frame_acerca,
+    text="Tema:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(anchor="w", padx=24, pady=(4, 2))
+combo_tema_app = ttk.Combobox(
+    frame_acerca,
+    values=tuple(APP_THEMES),
+    width=20,
+    state="readonly"
+)
+combo_tema_app.set(app_theme_name)
+combo_tema_app.pack(anchor="w", padx=24, pady=2)
+combo_tema_app.bind("<<ComboboxSelected>>", elegir_tema_app)
+tk.Label(
+    frame_acerca,
+    text="Tamaño de interfaz:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(anchor="w", padx=24, pady=(8, 2))
+combo_escala_app = ttk.Combobox(
+    frame_acerca,
+    values=("Compacta", "Normal", "Grande"),
+    width=20,
+    state="readonly"
+)
+combo_escala_app.set({0.9: "Compacta", 1.0: "Normal", 1.15: "Grande"}.get(app_ui_scale, "Normal"))
+combo_escala_app.pack(anchor="w", padx=24, pady=2)
+combo_escala_app.bind("<<ComboboxSelected>>", elegir_escala_app)
+tk.Checkbutton(
+    frame_acerca,
+    text="Sonidos de la aplicación",
+    variable=var_sonidos_app,
+    command=guardar_opciones_audio,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(anchor="w", padx=24, pady=(8, 2))
+tk.Checkbutton(
+    frame_acerca,
+    text="Avisos de estado del recorder",
+    variable=var_avisos_recorder,
+    command=guardar_opciones_audio,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(anchor="w", padx=24, pady=2)
+tk.Label(
+    frame_acerca,
+    text="Color del perfil seleccionado:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(anchor="w", padx=24, pady=(10, 2))
+frame_color_perfil = tk.Frame(frame_acerca, bg="#121212")
+frame_color_perfil.pack(anchor="w", padx=24, pady=2)
+lbl_muestra_color_perfil = tk.Label(
+    frame_color_perfil,
+    text="   ",
+    bg=app_accent_color,
+    relief="solid",
+    bd=1
+)
+lbl_muestra_color_perfil.pack(side=tk.LEFT, padx=(0, 8))
+tk.Button(
+    frame_color_perfil,
+    text="Elegir color del perfil...",
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=elegir_color_perfil
+).pack(side=tk.LEFT)
+tk.Label(
+    frame_acerca,
+    text="Orden del menú:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(anchor="w", padx=24, pady=(10, 2))
+frame_orden_menu = tk.Frame(frame_acerca, bg="#121212")
+frame_orden_menu.pack(anchor="w", padx=24, pady=2)
+lista_orden_menu = tk.Listbox(
+    frame_orden_menu,
+    width=20,
+    height=5,
+    exportselection=False,
+    bg="#2d2d2d",
+    fg="white",
+    selectbackground="#1f4037"
+)
+lista_orden_menu.pack(side=tk.LEFT)
+frame_boton_orden_menu = tk.Frame(frame_orden_menu, bg="#121212")
+frame_boton_orden_menu.pack(side=tk.LEFT, padx=(8, 0))
+tk.Button(
+    frame_boton_orden_menu,
+    text="Subir",
+    width=9,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=lambda: mover_seccion_menu(-1)
+).pack(pady=2)
+tk.Button(
+    frame_boton_orden_menu,
+    text="Bajar",
+    width=9,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=lambda: mover_seccion_menu(1)
+).pack(pady=2)
+combo_perfiles.bind("<<ComboboxSelected>>", actualizar_muestra_color_perfil)
+tk.Label(
+    frame_acerca,
+    text="Perfil público de Roblox",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Arial", 10, "bold")
+).pack(anchor="w", padx=24, pady=(20, 4))
+tk.Label(
+    frame_acerca,
+    text="Nombre de usuario:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 9)
+).pack(anchor="w", padx=24, pady=(4, 2))
+entry_roblox_username = tk.Entry(
+    frame_acerca,
+    width=28,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0
+)
+entry_roblox_username.pack(anchor="w", padx=24, pady=2)
+tk.Button(
+    frame_acerca,
+    text="Cargar perfil",
+    bg="#1f4037",
+    fg="white",
+    activebackground="#2f5f52",
+    activeforeground="white",
+    bd=0,
+    command=cargar_perfil_roblox
+).pack(anchor="w", padx=24, pady=6)
+lbl_estado_perfil_roblox = tk.Label(
+    frame_acerca,
+    text="Se consulta únicamente información pública del perfil.",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Arial", 8)
+)
+lbl_estado_perfil_roblox.pack(anchor="w", padx=24, pady=(0, 8))
+tk.Checkbutton(
+    frame_acerca,
+    text="Mostrar animación de inicio",
+    variable=var_intro_animacion,
+    command=guardar_configuracion,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(anchor="w", padx=24, pady=20)
+
+# Cargar configuración e iniciar
+cargar_configuracion()
+actualizar_hotkeys()
+if roblox_profile_username:
+    root.after(250, cargar_perfil_roblox)
+root.after(20, procesar_eventos_hotkey)
+root.after(100, actualizar_panel_estado)
+
+def ajustar_botones_ventana(event=None):
+    factor = min(1.5, max(1.0, root.winfo_width() / ancho_ventana))
+    frame_izquierdo.config(width=round(160 * factor))
+    for boton, ancho_base in botones_redimensionables:
+        boton.config(width=round(ancho_base * factor))
+
+def buscar_botones(widget):
+    botones = []
+    for hijo in widget.winfo_children():
+        if isinstance(hijo, tk.Button):
+            botones.append((hijo, int(hijo.cget("width"))))
+        botones.extend(buscar_botones(hijo))
+    return botones
+
+botones_redimensionables = buscar_botones(root)
+root.bind("<Configure>", ajustar_botones_ventana)
+root.after_idle(ajustar_botones_ventana)
+
+def mostrar_intro_digital():
+    root.withdraw()
+    intro = tk.Toplevel(root)
+    intro.overrideredirect(True)
+    intro.geometry(f"{ancho_ventana}x{alto_ventana}+{pos_x}+{pos_y}")
+
+    fondo = "#080d0c"
+    lienzo = tk.Canvas(intro, width=ancho_ventana, height=alto_ventana, bg=fondo, highlightthickness=0)
+    lienzo.pack(fill=tk.BOTH, expand=True)
+
+    columnas = []
+    cantidad_columnas = ancho_ventana // 20
+    for indice in range(cantidad_columnas):
+        x = indice * 20 + 10
+        y = random.randint(-alto_ventana, alto_ventana)
+        velocidad = random.randint(5, 12)
+        estela = random.randint(7, 13)
+        elementos = [
+            lienzo.create_text(x, y, text="", fill="#36ff9a", font=("Consolas", 11, "bold"))
+            for _ in range(estela)
+        ]
+        columnas.append({"x": x, "y": y, "velocidad": velocidad, "estela": estela, "elementos": elementos})
+
+    lienzo.create_text(
+        ancho_ventana // 2 + 2,
+        alto_ventana // 2 - 12 + 2,
+        text="GGSPQE",
+        fill="#06100b",
+        font=("Consolas", 29, "bold")
+    )
+    lienzo.create_text(
+        ancho_ventana // 2,
+        alto_ventana // 2 - 12,
+        text="GGSPQE",
+        fill="#e5fff0",
+        font=("Consolas", 29, "bold")
+    )
+    lienzo.create_line(
+        ancho_ventana // 2 - 90,
+        alto_ventana // 2 + 18,
+        ancho_ventana // 2 + 90,
+        alto_ventana // 2 + 18,
+        fill="#24d879",
+        width=2
+    )
+    lienzo.create_text(
+        ancho_ventana // 2,
+        alto_ventana // 2 + 43,
+        text="ROBLOX UTILITY",
+        fill="#7dcea0",
+        font=("Consolas", 10)
+    )
+
+    colores_estela = ("#25d879", "#1bad61", "#13834b", "#0e633a", "#0a492d", "#083923")
+    activa = True
+
+    def animar():
+        nonlocal activa
+        if not activa or not intro.winfo_exists():
+            return
+        for columna in columnas:
+            columna["y"] += columna["velocidad"]
+            if columna["y"] - columna["estela"] * 18 > alto_ventana:
+                columna["y"] = random.randint(-260, -40)
+                columna["velocidad"] = random.randint(5, 12)
+                columna["estela"] = random.randint(7, 13)
+            for indice, elemento in enumerate(columna["elementos"]):
+                lienzo.coords(elemento, columna["x"], columna["y"] - indice * 18)
+                lienzo.itemconfig(
+                    elemento,
+                    text=str(random.randint(0, 9)),
+                    fill="#baffd4" if indice == 0 else colores_estela[min(indice - 1, len(colores_estela) - 1)]
+                )
+        intro.after(55, animar)
+
+    def terminar():
+        nonlocal activa
+        if not activa:
+            return
+        activa = False
+        intro.destroy()
+        root.deiconify()
+        root.lift()
+
+    boton_saltar = tk.Button(
+        intro,
+        text="Saltar intro",
+        command=terminar,
+        bg="#13251b",
+        fg="#d8ffe7",
+        activebackground="#1d3d2b",
+        activeforeground="white",
+        bd=0,
+        padx=12,
+        pady=5
+    )
+    lienzo.create_window(ancho_ventana - 78, alto_ventana - 26, window=boton_saltar)
+    intro.bind("<KeyPress>", lambda evento: terminar())
+    animar()
+    intro.after(2400, terminar)
+    intro.focus_force()
+
+if intro_animacion_activa:
+    mostrar_intro_digital()
+else:
+    root.deiconify()
+
+root.mainloop()
