@@ -1,0 +1,4722 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog, colorchooser
+import threading
+import time
+import ctypes
+from ctypes import wintypes
+import json
+import os
+import sys
+import random
+import subprocess
+import shutil
+import queue
+import webbrowser
+import keyboard  # Requiere: pip install keyboard
+import base64
+import urllib.request
+
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+except ImportError:
+    DND_FILES = None
+    TkinterDnD = None
+
+# Intentar importar win32com para manipular el Firewall mediante COM nativo
+try:
+    import win32com.client
+except ImportError:
+    win32com = None
+
+# Bandeja del sistema (opcional): pip install pystray pillow
+try:
+    import pystray
+    from PIL import Image, ImageDraw, ImageFont
+except Exception:
+    pystray = None
+    Image = ImageDraw = ImageFont = None
+
+# Notificaciones de Windows (opcional): pip install win10toast
+try:
+    from win10toast import ToastNotifier
+    _toaster = ToastNotifier()
+except Exception:
+    ToastNotifier = None
+    _toaster = None
+
+# Inicio automático con Windows (incluido en Python en Windows)
+try:
+    import winreg
+except ImportError:
+    winreg = None
+
+# Archivo de configuración local
+CONFIG_FILE = "ggspqe_config.json"
+perfil_activo = "Predeterminado"
+perfiles_config = {}
+intro_animacion_activa = True
+roblox_profile_username = ""
+app_accent_color = "#00ffcc"
+app_theme_name = "GGSPQE"
+app_ui_scale = 1.0
+app_opacidad = 100  # porcentaje (60-100)
+app_theme_palette = {}
+perfil_colores = {}
+orden_secciones = ["Roblox", "Juegos", "Texturas", "Recorder", "Registro", "Estadísticas", "Preferencias"]
+recorder_macros = {}
+sonidos_activos = True
+avisos_recorder_activos = True
+
+APP_THEMES = {
+    "GGSPQE": {
+        "bg": "#121212", "top": "#1e1e1e", "sidebar": "#181818",
+        "panel": "#222222", "panel_alt": "#333333", "input": "#2d2d2d",
+        "text": "#ffffff", "muted": "#aaaaaa", "accent": "#00ffcc",
+        "accent_light": "#a8cbb8", "button": "#1f4037", "button_active": "#2f5f52",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Carbon Lime": {
+        "bg": "#111412", "top": "#1b211d", "sidebar": "#151a17",
+        "panel": "#202923", "panel_alt": "#303b33", "input": "#29332c",
+        "text": "#f0f5f0", "muted": "#a8b5aa", "accent": "#c2f970",
+        "accent_light": "#d8efaa", "button": "#344a21", "button_active": "#49652d",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Slate Coral": {
+        "bg": "#151719", "top": "#202326", "sidebar": "#191c1f",
+        "panel": "#282c2f", "panel_alt": "#393e42", "input": "#32373a",
+        "text": "#f3f4f4", "muted": "#aeb4b7", "accent": "#ff9671",
+        "accent_light": "#ffd0c2", "button": "#57362d", "button_active": "#784b3e",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Paper": {
+        "bg": "#eef1ed", "top": "#ffffff", "sidebar": "#e2e8e2",
+        "panel": "#f6f8f6", "panel_alt": "#d9e0da", "input": "#ffffff",
+        "text": "#18201b", "muted": "#59615d", "accent": "#087f5b",
+        "accent_light": "#176b4b", "button": "#d2e8dd", "button_active": "#baddc9",
+        "danger": "#f1d8d5", "danger_active": "#e8c1bc"
+    },
+    "Midnight Blue": {
+        "bg": "#10131c", "top": "#171c2c", "sidebar": "#131725",
+        "panel": "#1c2233", "panel_alt": "#2a3350", "input": "#232a40",
+        "text": "#eef1f8", "muted": "#9aa3bf", "accent": "#4da6ff",
+        "accent_light": "#a9d4ff", "button": "#1f3a5c", "button_active": "#2c527d",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Cyberpunk Neon": {
+        "bg": "#0d0714", "top": "#150c22", "sidebar": "#110a1c",
+        "panel": "#1c1230", "panel_alt": "#2a1c44", "input": "#24173a",
+        "text": "#f5eaff", "muted": "#b79fd6", "accent": "#ff2bd6",
+        "accent_light": "#ff9eef", "button": "#4a1f5c", "button_active": "#6b2c7d",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Sunset Orange": {
+        "bg": "#171008", "top": "#201509", "sidebar": "#1a1207",
+        "panel": "#2a1c0f", "panel_alt": "#3d2a17", "input": "#2f1f11",
+        "text": "#fff3e6", "muted": "#d9b699", "accent": "#ff8c42",
+        "accent_light": "#ffc59e", "button": "#5c3319", "button_active": "#7d4a26",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Royal Purple": {
+        "bg": "#12081c", "top": "#190c28", "sidebar": "#150a21",
+        "panel": "#221334", "panel_alt": "#331d4d", "input": "#281640",
+        "text": "#f2e9ff", "muted": "#b8a3d6", "accent": "#a855f7",
+        "accent_light": "#d8b4fe", "button": "#3d1f5c", "button_active": "#55297d",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Ocean Teal": {
+        "bg": "#071716", "top": "#0c211f", "sidebar": "#091b19",
+        "panel": "#122e2b", "panel_alt": "#1a433e", "input": "#143330",
+        "text": "#e6fffc", "muted": "#94c9c2", "accent": "#2dd4bf",
+        "accent_light": "#99f6e4", "button": "#1a4d47", "button_active": "#256b62",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Crimson": {
+        "bg": "#1a0808", "top": "#250c0c", "sidebar": "#1e0a0a",
+        "panel": "#331313", "panel_alt": "#4d1c1c", "input": "#3a1616",
+        "text": "#ffeaea", "muted": "#d69999", "accent": "#ef4444",
+        "accent_light": "#fca5a5", "button": "#5c1f1f", "button_active": "#7d2929",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Monochrome": {
+        "bg": "#121212", "top": "#1e1e1e", "sidebar": "#181818",
+        "panel": "#222222", "panel_alt": "#333333", "input": "#2d2d2d",
+        "text": "#ffffff", "muted": "#aaaaaa", "accent": "#ffffff",
+        "accent_light": "#cccccc", "button": "#3a3a3a", "button_active": "#4d4d4d",
+        "danger": "#552222", "danger_active": "#773333"
+    },
+    "Rose Gold": {
+        "bg": "#fdf3f0", "top": "#ffffff", "sidebar": "#f7e6e0",
+        "panel": "#fff8f6", "panel_alt": "#f2ddd6", "input": "#ffffff",
+        "text": "#3a1f1a", "muted": "#8a6a62", "accent": "#e0895a",
+        "accent_light": "#c96b3e", "button": "#f0d3c2", "button_active": "#e3bfa8",
+        "danger": "#f1d8d5", "danger_active": "#e8c1bc"
+    },
+    "Amber Gold": {
+        "bg": "#171404", "top": "#201b08", "sidebar": "#1a1606",
+        "panel": "#2b230d", "panel_alt": "#3d3213", "input": "#2f2810",
+        "text": "#fff8e6", "muted": "#d6c299", "accent": "#f5b942",
+        "accent_light": "#ffd980", "button": "#5c4a19", "button_active": "#7d6626",
+        "danger": "#552222", "danger_active": "#773333"
+    }
+}
+
+# Variables de estado
+anti_afk_activo = False
+autoclicker_activo = False
+lag_switch_activo = False
+menu_juegos_desplegado = False
+ejecutando_shuffle = False  # Bandera de control para evitar bucle en Shuffle Reload
+shuffle_stop = None
+fast_gun_swap_activo = False
+fast_gun_swap_stop = None
+fast_gun_swap_generation = 0
+auto_train_activo = False
+auto_train_stop = None
+auto_train_generation = 0
+lag_switch_stop = threading.Event()
+
+hotkeys_registradas = []
+eventos_hotkey = queue.SimpleQueue()
+hotkeys_mantenidas = set()
+captura_hotkey_activa = False
+captura_hotkey_hook = None
+captura_hotkey_entry = None
+captura_hotkey_boton = None
+captura_teclas_pulsadas = set()
+captura_modificadores = set()
+captura_modificador_suelto = None
+captura_timeout_id = None
+
+# Mapas de Virtual-Key (VK) y Hardware Scan Codes para Win32 API
+VK_MAP = {
+    '1': (0x31, 0x02),
+    '2': (0x32, 0x03),
+    '3': (0x33, 0x04),
+    '4': (0x34, 0x05),
+    'r': (0x52, 0x13)
+}
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ("wVk", wintypes.WORD),
+        ("wScan", wintypes.WORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_size_t)
+    ]
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_size_t)
+    ]
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", wintypes.DWORD),
+        ("wParamL", wintypes.WORD),
+        ("wParamH", wintypes.WORD)
+    ]
+
+class INPUTUNION(ctypes.Union):
+    _fields_ = [
+        ("ki", KEYBDINPUT),
+        ("mi", MOUSEINPUT),
+        ("hi", HARDWAREINPUT)
+    ]
+
+class INPUT(ctypes.Structure):
+    _anonymous_ = ("data",)
+    _fields_ = [("type", wintypes.DWORD), ("data", INPUTUNION)]
+
+class RECORDER_POINT(ctypes.Structure):
+    _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
+
+recorder_lock = threading.Lock()
+recorder_events = []
+recorder_mode = "idle"
+recorder_started_at = None
+recorder_keyboard_hook = None
+recorder_stop = None
+recorder_playback_stop = None
+recorder_keys_down = set()
+recorder_events_modo = False  # True = posiciones de mouse relativas a la ventana de Roblox
+recorder_macros_modo = {}  # nombre_macro -> bool (modo relativo usado al grabarla)
+
+# --- FUNCIONES DE SEGURIDAD Y PRIVILEGIOS ---
+
+def es_administrador():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        return False
+
+def obtener_ruta_roblox():
+    try:
+        comando = (
+            "Get-CimInstance Win32_Process -Filter \"Name='RobloxPlayerBeta.exe' "
+            "OR Name='WindowsUniversal.exe'\" | "
+            "Select-Object -ExpandProperty ExecutablePath"
+        )
+        resultado = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", comando],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if resultado.returncode == 0:
+            for ruta in resultado.stdout.splitlines():
+                ruta = ruta.strip()
+                if ruta and os.path.isfile(ruta):
+                    return ruta
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    local_appdata = os.environ.get("LOCALAPPDATA", "")
+    ruta_default = os.path.join(local_appdata, "Roblox", "Versions")
+    if os.path.exists(ruta_default):
+        for root_dir, dirs, files in os.walk(ruta_default):
+            if "RobloxPlayerBeta.exe" in files:
+                return os.path.join(root_dir, "RobloxPlayerBeta.exe")
+    return ""
+
+def obtener_carpeta_texturas_roblox():
+    exe_roblox = obtener_ruta_roblox()
+    if exe_roblox:
+        dir_version = os.path.dirname(exe_roblox)
+        dir_texturas = os.path.join(dir_version, "PlatformContent", "pc", "textures")
+        if os.path.exists(dir_texturas):
+            return dir_texturas
+    return ""
+
+def consultar_perfil_roblox(nombre_usuario):
+    def worker():
+        try:
+            solicitud_usuario = urllib.request.Request(
+                "https://users.roblox.com/v1/usernames/users",
+                data=json.dumps({
+                    "usernames": [nombre_usuario],
+                    "excludeBannedUsers": True
+                }).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "GGSPQE-Roblox-Utility/1.0"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(solicitud_usuario, timeout=10) as respuesta:
+                resultado_usuario = json.loads(respuesta.read().decode("utf-8"))
+            usuarios = resultado_usuario.get("data", [])
+            if not usuarios:
+                raise ValueError("No se encontró ese usuario de Roblox.")
+
+            usuario = usuarios[0]
+            id_usuario = usuario["id"]
+            nombre_canonico = usuario.get("name", nombre_usuario)
+            url_miniatura = (
+                "https://thumbnails.roblox.com/v1/users/avatar-headshot"
+                f"?userIds={id_usuario}&size=48x48&format=Png&isCircular=false"
+            )
+            with urllib.request.urlopen(url_miniatura, timeout=10) as respuesta:
+                resultado_miniatura = json.loads(respuesta.read().decode("utf-8"))
+            url_imagen = resultado_miniatura["data"][0]["imageUrl"]
+            with urllib.request.urlopen(url_imagen, timeout=10) as respuesta:
+                imagen = respuesta.read()
+            root.after(0, lambda: mostrar_perfil_roblox(nombre_canonico, imagen))
+        except Exception as error:
+            root.after(0, lambda error=error: lbl_estado_perfil_roblox.config(
+                text=f"No se pudo cargar el perfil: {error}", fg="#ffcc00"
+            ))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def cargar_perfil_roblox():
+    global roblox_profile_username
+    nombre_usuario = entry_roblox_username.get().strip()
+    if not nombre_usuario:
+        messagebox.showwarning("Perfil de Roblox", "Escribe tu nombre de usuario de Roblox.")
+        return
+
+    roblox_profile_username = nombre_usuario
+    guardar_configuracion()
+    lbl_estado_perfil_roblox.config(text="Buscando perfil público...", fg="#aaaaaa")
+    consultar_perfil_roblox(nombre_usuario)
+
+def mostrar_perfil_roblox(nombre_usuario, datos_imagen):
+    try:
+        imagen = tk.PhotoImage(data=base64.b64encode(datos_imagen).decode("ascii"))
+    except tk.TclError:
+        lbl_estado_perfil_roblox.config(text="No se pudo mostrar la foto del perfil.", fg="#ffcc00")
+        return
+
+    lbl_foto_perfil.config(image=imagen, text="", width=0, height=0)
+    lbl_foto_perfil.image = imagen
+    lbl_saludo_perfil.config(text=f"Hola {nombre_usuario}, ¿qué tal?")
+    lbl_estado_perfil_roblox.config(text=f"Perfil cargado: {nombre_usuario}", fg="#00cc88")
+
+# --- FUNCIONES NATIVAS DE WINDOWS Y SISTEMA ---
+
+def obtener_ventana_activa():
+    try:
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        longitud = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+        buffer = ctypes.create_unicode_buffer(longitud + 1)
+        ctypes.windll.user32.GetWindowTextW(hwnd, buffer, longitud + 1)
+        return buffer.value
+    except Exception:
+        return ""
+
+def obtener_proceso_ventana_activa():
+    """Nombre del ejecutable (ej: robloxplayerbeta.exe) de la ventana en primer plano."""
+    try:
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+        hwnd = user32.GetForegroundWindow()
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        h_proceso = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid.value)
+        if not h_proceso:
+            return ""
+        try:
+            buffer = ctypes.create_unicode_buffer(260)
+            tam = wintypes.DWORD(260)
+            if kernel32.QueryFullProcessImageNameW(h_proceso, 0, buffer, ctypes.byref(tam)):
+                return os.path.basename(buffer.value).lower()
+        finally:
+            kernel32.CloseHandle(h_proceso)
+    except Exception:
+        pass
+    return ""
+
+def esta_en_roblox():
+    ventana_actual = obtener_ventana_activa().lower()
+    if "ggspqe" in ventana_actual:
+        return False
+    if "roblox" in ventana_actual:
+        return True
+    # Respaldo: algunas ventanas de Roblox (multi-cuenta, localizadas) no tienen
+    # "roblox" en el título, así que verificamos también el proceso propietario.
+    return obtener_proceso_ventana_activa() in ("robloxplayerbeta.exe", "windowsuniversal.exe")
+
+def obtener_rect_ventana_roblox():
+    """Devuelve la esquina superior izquierda (x, y) de la ventana de Roblox en primer plano."""
+    try:
+        user32 = ctypes.windll.user32
+        hwnd = user32.GetForegroundWindow()
+        rect = wintypes.RECT()
+        if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return (rect.left, rect.top)
+    except Exception:
+        pass
+    return None
+
+def presionar_tecla_nativo(tecla_char):
+    """Envía un par de eventos de teclado con scan codes explícitos."""
+    user32 = ctypes.windll.user32
+    char_key = str(tecla_char).lower()
+    
+    if char_key in VK_MAP:
+        vk, scan_code = VK_MAP[char_key]
+    else:
+        vk = ord(char_key.upper())
+        scan_code = user32.MapVirtualKeyW(vk, 0)
+
+    eventos = (INPUT * 2)()
+    eventos[0].type = 1
+    eventos[0].ki = KEYBDINPUT(0, scan_code, 0x0008, 0, 0)
+    eventos[1].type = 1
+    eventos[1].ki = KEYBDINPUT(0, scan_code, 0x000A, 0, 0)
+
+    user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int)
+    user32.SendInput.restype = wintypes.UINT
+    enviados = user32.SendInput(2, eventos, ctypes.sizeof(INPUT))
+    if enviados != 2:
+        user32.keybd_event(vk, scan_code, 0, 0)
+        time.sleep(0.015)
+        user32.keybd_event(vk, scan_code, 0x0002, 0)
+
+# --- GESTOR DE TEXTURAS (FPS BOOST) ---
+
+def eliminar_texturas_roblox():
+    def worker():
+        dir_texturas = obtener_carpeta_texturas_roblox()
+        if not dir_texturas:
+            messagebox.showerror("Error", "No se encontró la carpeta de instalación de Roblox.")
+            return
+        
+        try:
+            dir_backup = dir_texturas + "_BACKUP"
+            if not os.path.exists(dir_backup):
+                shutil.copytree(dir_texturas, dir_backup)
+            
+            carpetas_objetivo = ["subsurface", "sky", "terrain"]
+            for item in os.listdir(dir_texturas):
+                ruta_item = os.path.join(dir_texturas, item)
+                if os.path.isdir(ruta_item) and item.lower() in carpetas_objetivo:
+                    for sub_root, sub_dirs, files in os.walk(ruta_item):
+                        for f in files:
+                            try:
+                                os.remove(os.path.join(sub_root, f))
+                            except Exception:
+                                pass
+            root.after(0, lambda: mostrar_banner("Texturas optimizadas para FPS Boost.", "exito"))
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudieron modificar las texturas: {e}")
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def restaurar_texturas_roblox():
+    def worker():
+        dir_texturas = obtener_carpeta_texturas_roblox()
+        if not dir_texturas:
+            messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+            return
+        
+        dir_backup = dir_texturas + "_BACKUP"
+        if not os.path.exists(dir_backup):
+            messagebox.showwarning("Advertencia", "No existe una copia de respaldo guardada para restaurar.")
+            return
+
+        try:
+            shutil.rmtree(dir_texturas)
+            shutil.copytree(dir_backup, dir_texturas)
+            root.after(0, lambda: mostrar_banner("Texturas originales restauradas.", "exito"))
+        except Exception as e:
+            messagebox.showerror("Error", f"Fallo al restaurar texturas: {e}")
+
+    threading.Thread(target=worker, daemon=True).start()
+
+TEXTURE_CATEGORIES = {
+    "Cielo": (os.path.join("content", "sky"), {".dds", ".jpg", ".png"}),
+    "Punteros": (os.path.join("content", "textures", "Cursors"), {".png"}),
+    "Agua": (os.path.join("PlatformContent", "pc", "textures", "water"), {".dds"}),
+    "Interfaz": (os.path.join("PlatformContent", "pc", "textures", "ui"), {".png"})
+}
+
+def manejar_drop_texturas(evento):
+    try:
+        rutas = root.tk.splitlist(evento.data)
+    except tk.TclError:
+        messagebox.showerror("Archivos no válidos", "No se pudieron leer los elementos soltados.")
+        return
+    if len(rutas) == 1 and os.path.isdir(rutas[0]):
+        instalar_paquete_texturas(carpeta_paquete=rutas[0])
+    elif rutas:
+        instalar_paquete_texturas(archivos_sueltos=rutas)
+
+def seleccionar_archivos_texturas():
+    categoria = combo_categoria_textura.get().strip()
+    if categoria not in TEXTURE_CATEGORIES:
+        messagebox.showwarning("Texturas", "Selecciona una categoría.")
+        return
+    _, extensiones = TEXTURE_CATEGORIES[categoria]
+    patron = " ".join(f"*{extension}" for extension in sorted(extensiones))
+    archivos = filedialog.askopenfilenames(
+        parent=root,
+        title=f"Seleccionar archivos para {categoria}",
+        filetypes=[("Texturas compatibles", patron), ("Todos los archivos", "*.*")]
+    )
+    if archivos:
+        instalar_paquete_texturas(archivos_sueltos=archivos)
+
+def elegir_textura_destino(dir_categoria, dir_backup, extension, nombre_origen):
+    candidatos = {}
+    for raiz in (dir_categoria, dir_backup):
+        if not os.path.isdir(raiz):
+            continue
+        for carpeta_actual, subcarpetas, nombres in os.walk(raiz, followlinks=False):
+            subcarpetas[:] = [
+                nombre for nombre in subcarpetas
+                if not os.path.islink(os.path.join(carpeta_actual, nombre))
+            ]
+            for nombre in nombres:
+                ruta = os.path.join(carpeta_actual, nombre)
+                if os.path.islink(ruta) or os.path.splitext(nombre)[1].lower() != extension:
+                    continue
+                relativa = os.path.relpath(ruta, raiz)
+                candidatos.setdefault(os.path.normcase(relativa), relativa)
+
+    opciones = sorted(candidatos.values(), key=str.casefold)
+    if not opciones:
+        return None
+
+    dialogo = tk.Toplevel(root)
+    dialogo.title("Elegir textura a reemplazar")
+    dialogo.transient(root)
+    dialogo.grab_set()
+    tk.Label(
+        dialogo,
+        text=f"No hay coincidencia para {nombre_origen}. Selecciona el destino:"
+    ).pack(anchor="w", padx=10, pady=(10, 4))
+
+    marco_lista = tk.Frame(dialogo)
+    marco_lista.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
+    lista = tk.Listbox(marco_lista, width=58, height=min(18, max(6, len(opciones))), exportselection=False)
+    barra = tk.Scrollbar(marco_lista, orient=tk.VERTICAL, command=lista.yview)
+    lista.configure(yscrollcommand=barra.set)
+    lista.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    barra.pack(side=tk.RIGHT, fill=tk.Y)
+    for opcion in opciones:
+        lista.insert(tk.END, opcion)
+    lista.selection_set(0)
+
+    seleccion = {"ruta": None}
+
+    def confirmar(event=None):
+        indices = lista.curselection()
+        if indices:
+            seleccion["ruta"] = opciones[indices[0]]
+            dialogo.destroy()
+
+    def cancelar():
+        dialogo.destroy()
+
+    marco_botones = tk.Frame(dialogo)
+    marco_botones.pack(fill=tk.X, padx=10, pady=(4, 10))
+    tk.Button(marco_botones, text="Cancelar", command=cancelar).pack(side=tk.RIGHT, padx=(4, 0))
+    tk.Button(marco_botones, text="Reemplazar", command=confirmar).pack(side=tk.RIGHT)
+    lista.bind("<Double-Button-1>", confirmar)
+    dialogo.bind("<Return>", confirmar)
+    dialogo.bind("<Escape>", lambda event: cancelar())
+    dialogo.protocol("WM_DELETE_WINDOW", cancelar)
+    lista.focus_set()
+    root.wait_window(dialogo)
+    return seleccion["ruta"]
+
+def reiniciar_roblox(exe_roblox):
+    try:
+        resultado = subprocess.run(
+            ["taskkill", "/F", "/IM", os.path.basename(exe_roblox)],
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        if resultado.returncode != 0:
+            detalle = resultado.stderr.strip() or resultado.stdout.strip()
+            raise OSError(detalle or "No se pudo cerrar Roblox.")
+        if not webbrowser.open("https://www.roblox.com/home", new=2):
+            raise OSError("No se pudo abrir la página oficial de Roblox.")
+    except Exception as error:
+        root.after(0, lambda error=error: messagebox.showerror(
+            "No se pudo reiniciar Roblox",
+            f"Las texturas se instalaron, pero no se pudo abrir Roblox.com. Abre Roblox manualmente.\n{error}"
+        ))
+
+def ofrecer_reinicio_roblox(exe_roblox, categoria, cantidad):
+    nombre_ejecutable = os.path.basename(exe_roblox)
+    try:
+        procesos = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {nombre_ejecutable}", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        roblox_abierto = nombre_ejecutable.lower() in procesos.stdout.lower()
+    except (OSError, subprocess.SubprocessError):
+        roblox_abierto = False
+
+    if not roblox_abierto:
+        messagebox.showinfo(
+            "Texturas instaladas",
+            f"Se instalaron {cantidad} archivos de {categoria}. Abre Roblox para aplicar los cambios."
+        )
+        return
+
+    if messagebox.askyesno(
+        "Reiniciar Roblox",
+        f"Se instalaron {cantidad} archivos de {categoria}. Roblox se cerrará y se abrirá Roblox.com. "
+        "Pulsa Jugar en la página para iniciar con una autenticación nueva. ¿Continuar?"
+    ):
+        threading.Thread(target=reiniciar_roblox, args=(exe_roblox,), daemon=True).start()
+
+def instalar_paquete_texturas(carpeta_paquete=None, archivos_sueltos=None):
+    categoria = combo_categoria_textura.get().strip()
+    if categoria not in TEXTURE_CATEGORIES:
+        messagebox.showwarning("Texturas", "Selecciona una categoría.")
+        return
+
+    if carpeta_paquete is None and archivos_sueltos is None:
+        carpeta_paquete = filedialog.askdirectory(
+            parent=root,
+            title=f"Seleccionar texturas personalizadas: {categoria}"
+        )
+        if not carpeta_paquete:
+            return
+
+    exe_roblox = obtener_ruta_roblox()
+    if not exe_roblox:
+        messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+        return
+
+    directorio_version = os.path.dirname(exe_roblox)
+    ruta_relativa_categoria, extensiones_textura = TEXTURE_CATEGORIES[categoria]
+    dir_categoria = os.path.join(directorio_version, ruta_relativa_categoria)
+    dir_backup = dir_categoria + "_BACKUP"
+    raiz_texturas = os.path.normcase(os.path.realpath(dir_categoria))
+    raiz_backup = os.path.normcase(os.path.realpath(dir_backup))
+    raiz_instalacion = os.path.normcase(os.path.realpath(directorio_version))
+    archivos_paquete = []
+    reemplazos = []
+    if archivos_sueltos is None:
+        raiz_paquete = os.path.normcase(os.path.realpath(carpeta_paquete))
+        try:
+            raiz_compartida = os.path.commonpath((raiz_paquete, raiz_instalacion))
+        except ValueError:
+            raiz_compartida = ""
+        if raiz_compartida in (raiz_paquete, raiz_instalacion):
+            messagebox.showerror("Carpeta no válida", "El paquete debe estar fuera de la carpeta de Roblox.")
+            return
+
+        for carpeta_actual, subcarpetas, nombres in os.walk(raiz_paquete, followlinks=False):
+            subcarpetas[:] = [
+                nombre for nombre in subcarpetas
+                if not os.path.islink(os.path.join(carpeta_actual, nombre))
+            ]
+            for nombre_archivo in nombres:
+                origen = os.path.join(carpeta_actual, nombre_archivo)
+                if os.path.islink(origen):
+                    continue
+                archivos_paquete.append((origen, os.path.relpath(origen, raiz_paquete)))
+    else:
+        for origen in archivos_sueltos:
+            origen = os.path.normpath(origen)
+            if os.path.isdir(origen):
+                for carpeta_actual, subcarpetas, nombres in os.walk(origen, followlinks=False):
+                    subcarpetas[:] = [
+                        nombre for nombre in subcarpetas
+                        if not os.path.islink(os.path.join(carpeta_actual, nombre))
+                    ]
+                    for nombre_archivo in nombres:
+                        ruta_origen = os.path.join(carpeta_actual, nombre_archivo)
+                        if not os.path.islink(ruta_origen):
+                            archivos_paquete.append((ruta_origen, os.path.relpath(ruta_origen, origen)))
+            elif os.path.isfile(origen) and not os.path.islink(origen):
+                archivos_paquete.append((origen, os.path.basename(origen)))
+
+    for origen, ruta_relativa in archivos_paquete:
+        if os.path.splitext(origen)[1].lower() not in extensiones_textura:
+            continue
+        try:
+            raiz_origen = os.path.normcase(os.path.realpath(origen))
+            if os.path.commonpath((raiz_origen, raiz_instalacion)) == raiz_instalacion:
+                continue
+        except ValueError:
+            pass
+        destino = os.path.join(raiz_texturas, ruta_relativa)
+        original = os.path.join(raiz_backup, ruta_relativa)
+        existe_en_instalacion = os.path.isfile(destino) and not os.path.islink(destino)
+        existe_en_respaldo = os.path.isfile(original) and not os.path.islink(original)
+        if not existe_en_instalacion and not existe_en_respaldo:
+            if archivos_sueltos is None:
+                continue
+            ruta_destino = elegir_textura_destino(
+                dir_categoria,
+                dir_backup,
+                os.path.splitext(origen)[1].lower(),
+                os.path.basename(origen)
+            )
+            if ruta_destino is None:
+                continue
+            destino = os.path.join(raiz_texturas, ruta_destino)
+        if os.path.commonpath((raiz_texturas, os.path.normcase(os.path.realpath(destino)))) != raiz_texturas:
+            continue
+        reemplazos.append((origen, destino))
+
+    if not reemplazos:
+        messagebox.showwarning(
+            "Sin coincidencias",
+            "No se encontraron archivos de textura con la misma ruta y nombre en Roblox."
+        )
+        return
+
+    if not messagebox.askyesno(
+        "Confirmar instalación",
+        f"Categoría: {categoria}\nSe reemplazarán {len(reemplazos)} archivos coincidentes.\n"
+        f"Se conservará una copia original en:\n{dir_backup}\n\n¿Continuar?"
+    ):
+        return
+
+    def worker():
+        try:
+            if os.path.exists(dir_backup) and not os.path.isdir(dir_backup):
+                raise OSError("La ruta de respaldo existe, pero no es una carpeta.")
+            if not os.path.exists(dir_backup):
+                if not os.path.isdir(dir_categoria):
+                    raise OSError("La carpeta original de esta categoría no existe para crear el respaldo.")
+                shutil.copytree(dir_categoria, dir_backup)
+
+            for origen, destino in reemplazos:
+                os.makedirs(os.path.dirname(destino), exist_ok=True)
+                shutil.copy2(origen, destino)
+
+            root.after(0, lambda: ofrecer_reinicio_roblox(
+                exe_roblox, categoria, len(reemplazos)
+            ))
+        except Exception as error:
+            root.after(0, lambda error=error: messagebox.showerror(
+                "Error al instalar texturas",
+                f"No se pudo completar la instalación. Si hubo cambios parciales, restaura esta categoría.\n{error}"
+            ))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def restaurar_categoria_texturas():
+    categoria = combo_categoria_textura.get().strip()
+    if categoria not in TEXTURE_CATEGORIES:
+        messagebox.showwarning("Texturas", "Selecciona una categoría.")
+        return
+
+    exe_roblox = obtener_ruta_roblox()
+    if not exe_roblox:
+        messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+        return
+
+    ruta_relativa_categoria, _ = TEXTURE_CATEGORIES[categoria]
+    dir_categoria = os.path.join(os.path.dirname(exe_roblox), ruta_relativa_categoria)
+    dir_backup = dir_categoria + "_BACKUP"
+    if not os.path.isdir(dir_backup):
+        messagebox.showwarning("Respaldo no encontrado", f"No hay respaldo propio para {categoria}.")
+        return
+
+    if not messagebox.askyesno("Restaurar categoría", f"¿Restaurar las texturas originales de {categoria}?"):
+        return
+
+    def worker():
+        try:
+            if os.path.exists(dir_categoria):
+                shutil.rmtree(dir_categoria)
+            shutil.copytree(dir_backup, dir_categoria)
+            root.after(0, lambda: mostrar_banner(f"Se restauró la categoría: {categoria}.", "exito"))
+        except Exception as error:
+            root.after(0, lambda error=error: messagebox.showerror("Error al restaurar", str(error)))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def eliminar_agua_roblox():
+    def worker():
+        dir_texturas = obtener_carpeta_texturas_roblox()
+        if not dir_texturas:
+            messagebox.showerror("Error", "No se encontró la instalación de Roblox.")
+            return
+
+        ruta_agua = os.path.join(dir_texturas, "water")
+        if os.path.exists(ruta_agua):
+            try:
+                for root_dir, dirs, files in os.walk(ruta_agua):
+                    for f in files:
+                        os.remove(os.path.join(root_dir, f))
+                root.after(0, lambda: mostrar_banner("Texturas de agua eliminadas.", "exito"))
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo eliminar el agua: {e}")
+        else:
+            messagebox.showinfo("Info", "No se encontraron texturas de agua específicas.")
+
+    threading.Thread(target=worker, daemon=True).start()
+
+# --- PRISON LIFE: SHUFFLE RELOAD ---
+
+def ejecutar_shuffle_reload(e=None):
+    global ejecutando_shuffle, shuffle_stop
+    if ejecutando_shuffle or not esta_en_roblox():
+        return
+
+    try:
+        delay = float(entry_shuffle_delay.get()) / 1000.0
+        if delay < 0.03:
+            delay = 0.03
+    except ValueError:
+        delay = 0.05
+
+    active_slots = []
+    if var_slot1.get(): active_slots.append("1")
+    if var_slot2.get(): active_slots.append("2")
+    if var_slot3.get(): active_slots.append("3")
+    if var_slot4.get(): active_slots.append("4")
+    beep = var_beep.get() and var_sonidos_app.get()
+    shuffle_stop = threading.Event()
+    stop_event = shuffle_stop
+    ejecutando_shuffle = True
+
+    def worker():
+        global ejecutando_shuffle
+        try:
+            for key in active_slots:
+                if stop_event.is_set():
+                    break
+                presionar_tecla_nativo(key)
+                if stop_event.wait(delay):
+                    break
+                presionar_tecla_nativo("r")
+                if stop_event.wait(delay):
+                    break
+
+            if beep:
+                try:
+                    ctypes.windll.kernel32.Beep(750, 40)
+                except Exception:
+                    pass
+        finally:
+            ejecutando_shuffle = False
+
+    threading.Thread(target=worker, daemon=True).start()
+
+def optimized_shoot(active_slots, delay, stop_event):
+    user32 = ctypes.windll.user32
+    for key in active_slots:
+        if stop_event.is_set():
+            return
+        presionar_tecla_nativo(key)
+        if stop_event.wait(delay):
+            return
+        user32.mouse_event(0x0002, 0, 0, 0, 0)
+        user32.mouse_event(0x0004, 0, 0, 0, 0)
+        if stop_event.wait(delay):
+            return
+
+def fast_gun_swap_worker(active_slots, delay, hold_mode, secondary_key, stop_event, generation):
+    try:
+        if hold_mode:
+            while not stop_event.is_set() and keyboard.is_pressed(secondary_key):
+                optimized_shoot(active_slots, delay, stop_event)
+        else:
+            while not stop_event.is_set():
+                optimized_shoot(active_slots, delay, stop_event)
+    finally:
+        eventos_hotkey.put(("fast_swap_done", generation))
+
+def auto_train_worker(active_slots, click_enabled, click_type, delay, stop_event, generation):
+    user32 = ctypes.windll.user32
+    click_flags = (0x0008, 0x0010) if click_type == "Clic Derecho" else (0x0002, 0x0004)
+    try:
+        while not stop_event.is_set():
+            random.shuffle(active_slots)
+            for key in active_slots:
+                if stop_event.is_set():
+                    break
+                presionar_tecla_nativo(key)
+                if stop_event.wait(delay):
+                    break
+                if click_enabled:
+                    user32.mouse_event(click_flags[0], 0, 0, 0, 0)
+                    try:
+                        stop_event.wait(random.uniform(0.01, 0.03))
+                    finally:
+                        user32.mouse_event(click_flags[1], 0, 0, 0, 0)
+                    if stop_event.is_set():
+                        break
+                    if stop_event.wait(delay):
+                        break
+    finally:
+        eventos_hotkey.put(("auto_train_done", generation))
+
+def toggle_auto_train():
+    global auto_train_activo, auto_train_stop, auto_train_generation
+
+    if auto_train_activo:
+        auto_train_stop.set()
+        auto_train_activo = False
+        registrar_log("Auto Train", "Desactivado", notificar=True)
+        btn_auto_train.config(text="Iniciar Auto Train", bg="#2d2d2d")
+        lbl_auto_train_estado.config(text="Auto Train: detenido", fg="#aaaaaa")
+        return
+
+    if not esta_en_roblox():
+        lbl_auto_train_estado.config(text="Abre Roblox para iniciar Auto Train", fg="#ffcc00")
+        return
+
+    active_slots = [
+        key for key, variable in (
+            ("1", var_auto_train_slot1),
+            ("2", var_auto_train_slot2),
+            ("3", var_auto_train_slot3),
+            ("4", var_auto_train_slot4)
+        )
+        if variable.get()
+    ]
+    if not active_slots:
+        lbl_auto_train_estado.config(text="Selecciona al menos un slot", fg="#ffcc00")
+        return
+
+    try:
+        delay = max(0.01, float(entry_auto_train_delay.get()) / 1000.0)
+    except ValueError:
+        lbl_auto_train_estado.config(text="Introduce un intervalo válido", fg="#ffcc00")
+        return
+
+    auto_train_generation += 1
+    generation = auto_train_generation
+    auto_train_stop = threading.Event()
+    auto_train_activo = True
+    registrar_log("Auto Train", "Activado", notificar=True)
+    btn_auto_train.config(text="Detener Auto Train", bg="#552222")
+    lbl_auto_train_estado.config(text="Auto Train: activo", fg="#00ffcc")
+    threading.Thread(
+        target=auto_train_worker,
+        args=(
+            active_slots,
+            var_auto_train_click.get(),
+            combo_auto_train_click_type.get(),
+            delay,
+            auto_train_stop,
+            generation
+        ),
+        daemon=True
+    ).start()
+
+def toggle_fast_gun_swap():
+    global fast_gun_swap_activo, fast_gun_swap_stop, fast_gun_swap_generation
+
+    if fast_gun_swap_activo:
+        fast_gun_swap_stop.set()
+        fast_gun_swap_activo = False
+        registrar_log("Fast Gun Swap", "Desactivado", notificar=True)
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: detenido", fg="#aaaaaa")
+        return
+
+    if not esta_en_roblox():
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: abre Roblox y pulsa el atajo", fg="#ffcc00")
+        return
+
+    active_slots = []
+    if var_slot1.get(): active_slots.append("1")
+    if var_slot2.get(): active_slots.append("2")
+    if var_slot3.get(): active_slots.append("3")
+    if var_slot4.get(): active_slots.append("4")
+    if not active_slots:
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: selecciona al menos un slot", fg="#ffcc00")
+        return
+
+    try:
+        delay = max(0.01, float(entry_fast_swap_delay.get()) / 1000.0)
+    except ValueError:
+        delay = 0.05
+
+    hold_mode = var_fast_swap_hold.get()
+    secondary_key = entry_fast_swap_secondary.get().strip().lower()
+    if hold_mode and not secondary_key:
+        lbl_fast_gun_swap.config(text="Fast Gun Swap: configura la tecla secundaria", fg="#ffcc00")
+        return
+    if hold_mode and not keyboard.is_pressed(secondary_key):
+        lbl_fast_gun_swap.config(
+            text=f"Fast Gun Swap: mantén {secondary_key.upper()} al pulsar el atajo",
+            fg="#ffcc00"
+        )
+        return
+
+    fast_gun_swap_generation += 1
+    generation = fast_gun_swap_generation
+    fast_gun_swap_stop = threading.Event()
+    fast_gun_swap_activo = True
+    registrar_log("Fast Gun Swap", "Activado", notificar=True)
+    lbl_fast_gun_swap.config(text="Fast Gun Swap: activo", fg="#00ffcc")
+    threading.Thread(
+        target=fast_gun_swap_worker,
+        args=(active_slots, delay, hold_mode, secondary_key, fast_gun_swap_stop, generation),
+        daemon=True
+    ).start()
+
+def agregar_evento_recorder(tipo, valor):
+    if recorder_started_at is not None:
+        recorder_events.append((time.perf_counter() - recorder_started_at, tipo, valor))
+
+def grabar_tecla_recorder(evento):
+    if evento.event_type not in (keyboard.KEY_DOWN, keyboard.KEY_UP) or not esta_en_roblox():
+        return
+
+    nombre_tecla = str(evento.name)
+    with recorder_lock:
+        if recorder_mode != "recording" or recorder_started_at is None:
+            return
+        if evento.event_type == keyboard.KEY_DOWN:
+            if nombre_tecla in recorder_keys_down:
+                return
+            recorder_keys_down.add(nombre_tecla)
+            agregar_evento_recorder("key_down", nombre_tecla)
+        elif nombre_tecla in recorder_keys_down:
+            recorder_keys_down.remove(nombre_tecla)
+            agregar_evento_recorder("key_up", nombre_tecla)
+
+def actualizar_estado_recorder(texto, color="#aaaaaa"):
+    if avisos_recorder_activos:
+        lbl_recorder_estado.config(text=texto, fg=color)
+
+def programar_ui_recorder(texto, color="#aaaaaa", sonido=False):
+    if avisos_recorder_activos:
+        eventos_hotkey.put(("recorder_status", texto, color))
+    if sonido and sonidos_activos:
+        eventos_hotkey.put(("recorder_sound",))
+
+def iniciar_grabacion_recorder():
+    global recorder_events, recorder_mode, recorder_started_at
+    global recorder_keyboard_hook, recorder_stop, recorder_keys_down, recorder_events_modo
+
+    if recorder_mode != "idle" or (recorder_playback_stop and not recorder_playback_stop.is_set()):
+        messagebox.showwarning("Recorder", "Detén la grabación o reproducción actual primero.")
+        return
+
+    with recorder_lock:
+        recorder_events = []
+        recorder_keys_down.clear()
+        recorder_started_at = None
+        recorder_mode = "waiting"
+    recorder_events_modo = var_recorder_relativo.get()
+    recorder_stop = threading.Event()
+    registrar_log("Recorder", "Grabación iniciada" + (" (modo relativo)" if recorder_events_modo else ""))
+    recorder_keyboard_hook = keyboard.hook(grabar_tecla_recorder, suppress=False)
+    actualizar_lista_eventos_recorder()
+    programar_ui_recorder("Pasa a Roblox para empezar a grabar...", "#ffcc00")
+    threading.Thread(target=recorder_mouse_worker, daemon=True).start()
+
+def recorder_mouse_worker():
+    global recorder_mode, recorder_started_at, recorder_keyboard_hook
+
+    user32 = ctypes.windll.user32
+    botones_vinculados = {"izquierdo": 0x01, "derecho": 0x02, "central": 0x04}
+    botones_pulsados = set()
+    ultima_posicion = None
+    punto = RECORDER_POINT()
+    stop_event = recorder_stop
+    countdown_restante = 0
+    countdown_ultimo_tick = 0.0
+    origen_ventana_grabacion = None
+
+    while not stop_event.is_set():
+        en_roblox = esta_en_roblox()
+        with recorder_lock:
+            if recorder_mode == "waiting" and en_roblox:
+                recorder_mode = "countdown"
+                countdown_restante = 3
+                countdown_ultimo_tick = time.perf_counter()
+                programar_ui_recorder("Empieza en 3...", "#ffcc00")
+                eventos_hotkey.put(("recorder_countdown", 3, 3))
+            elif recorder_mode == "countdown" and not en_roblox:
+                recorder_mode = "waiting"
+                programar_ui_recorder("Pasa a Roblox para empezar a grabar...", "#ffcc00")
+                eventos_hotkey.put(("recorder_countdown", None, None))
+            elif recorder_mode == "countdown" and en_roblox:
+                ahora = time.perf_counter()
+                if ahora - countdown_ultimo_tick >= 1.0:
+                    countdown_restante -= 1
+                    countdown_ultimo_tick = ahora
+                    if countdown_restante > 0:
+                        programar_ui_recorder(f"Empieza en {countdown_restante}...", "#ffcc00")
+                        eventos_hotkey.put(("recorder_countdown", countdown_restante, 3))
+                    else:
+                        recorder_mode = "recording"
+                        recorder_started_at = time.perf_counter()
+                        origen_ventana_grabacion = obtener_rect_ventana_roblox() if recorder_events_modo else None
+                        eventos_hotkey.put(("recorder_countdown", None, None))
+                        programar_ui_recorder(
+                            "Grabando... vuelve a esta ventana para terminar.", "#ff5555", sonido=True
+                        )
+            elif recorder_mode == "recording" and not en_roblox:
+                break
+
+            if recorder_mode == "recording":
+                if user32.GetCursorPos(ctypes.byref(punto)):
+                    if recorder_events_modo:
+                        origen = origen_ventana_grabacion or obtener_rect_ventana_roblox()
+                        posicion = (punto.x - origen[0], punto.y - origen[1]) if origen else (punto.x, punto.y)
+                    else:
+                        posicion = (punto.x, punto.y)
+                    if posicion != ultima_posicion:
+                        agregar_evento_recorder("mouse_move", posicion)
+                        ultima_posicion = posicion
+
+                for nombre_boton, codigo_boton in botones_vinculados.items():
+                    pulsado = bool(user32.GetAsyncKeyState(codigo_boton) & 0x8000)
+                    if pulsado and nombre_boton not in botones_pulsados:
+                        botones_pulsados.add(nombre_boton)
+                        agregar_evento_recorder("mouse_down", nombre_boton)
+                    elif not pulsado and nombre_boton in botones_pulsados:
+                        botones_pulsados.remove(nombre_boton)
+                        agregar_evento_recorder("mouse_up", nombre_boton)
+        stop_event.wait(0.01)
+
+    with recorder_lock:
+        if recorder_started_at is not None:
+            for nombre_boton in botones_pulsados:
+                agregar_evento_recorder("mouse_up", nombre_boton)
+            for nombre_tecla in recorder_keys_down:
+                agregar_evento_recorder("key_up", nombre_tecla)
+            recorder_keys_down.clear()
+        recorder_started_at = None
+        recorder_mode = "idle"
+        eventos_totales = len(recorder_events)
+
+    if recorder_keyboard_hook is not None:
+        try:
+            keyboard.unhook(recorder_keyboard_hook)
+        except Exception:
+            pass
+        recorder_keyboard_hook = None
+    eventos_hotkey.put(("recorder_events_ready",))
+    if eventos_totales:
+        estadisticas["grabaciones"] += 1
+        programar_ui_recorder(
+            f"Grabación lista: {eventos_totales} eventos.", "#00cc88", sonido=True
+        )
+        enviar_notificacion("Recorder", f"Grabación lista: {eventos_totales} eventos.")
+    else:
+        programar_ui_recorder(
+            "No se grabaron eventos. Inicia con Roblox en primer plano.", "#ffcc00", sonido=True
+        )
+
+def detener_recorder():
+    if recorder_stop is not None:
+        recorder_stop.set()
+    if recorder_playback_stop is not None:
+        recorder_playback_stop.set()
+    registrar_log("Recorder", "Detenido")
+
+def reproducir_recorder():
+    global recorder_playback_stop
+
+    with recorder_lock:
+        eventos = list(recorder_events)
+    if not eventos:
+        messagebox.showwarning("Recorder", "Primero graba una secuencia en Roblox.")
+        return
+    if recorder_mode != "idle":
+        messagebox.showwarning("Recorder", "Detén la grabación y espera a que termine antes de reproducir.")
+        return
+    if recorder_playback_stop is not None and not recorder_playback_stop.is_set():
+        messagebox.showwarning("Recorder", "Ya hay una reproducción en curso.")
+        return
+
+    try:
+        repeticiones = max(0, int(entry_recorder_repeticiones.get().strip()))
+    except ValueError:
+        repeticiones = 1
+    try:
+        velocidad = max(0.1, float(combo_recorder_velocidad.get().strip().lower().replace("x", "")))
+    except ValueError:
+        velocidad = 1.0
+
+    recorder_playback_stop = threading.Event()
+    estadisticas["macros_reproducidas"] += 1
+    registrar_log(
+        "Recorder",
+        f"Reproducción iniciada ({len(eventos)} acciones, "
+        f"{'∞' if repeticiones == 0 else repeticiones} vuelta(s), x{velocidad:g})"
+    )
+    programar_ui_recorder("Pasa a Roblox para reproducir la secuencia...", "#ffcc00")
+    threading.Thread(
+        target=reproducir_eventos_recorder,
+        args=(eventos, recorder_playback_stop, repeticiones, velocidad, recorder_events_modo),
+        daemon=True
+    ).start()
+
+def reproducir_eventos_recorder(eventos, stop_event, repeticiones=1, velocidad=1.0, modo_relativo=False):
+    user32 = ctypes.windll.user32
+    flags_mouse = {
+        "izquierdo": (0x0002, 0x0004),
+        "derecho": (0x0008, 0x0010),
+        "central": (0x0020, 0x0040)
+    }
+
+    programar_ui_recorder("Reproduciendo...", "#00ffcc", sonido=True)
+    while not stop_event.is_set() and not esta_en_roblox():
+        if stop_event.wait(0.05):
+            break
+
+    try:
+        if stop_event.is_set() or not esta_en_roblox():
+            return
+
+        origen_ventana = obtener_rect_ventana_roblox() if modo_relativo else None
+        vuelta = 0
+        while not stop_event.is_set() and (repeticiones == 0 or vuelta < repeticiones):
+            vuelta += 1
+            if repeticiones != 1:
+                etiqueta_vueltas = f"{vuelta}" if repeticiones == 0 else f"{vuelta}/{repeticiones}"
+                programar_ui_recorder(f"Reproduciendo (vuelta {etiqueta_vueltas})...", "#00ffcc")
+
+            teclas_pulsadas = set()
+            botones_pulsados = set()
+            inicio = time.perf_counter()
+            try:
+                for instante, tipo, valor in eventos:
+                    instante_escalado = instante / velocidad
+                    while not stop_event.is_set():
+                        if not esta_en_roblox():
+                            stop_event.set()
+                            break
+                        restante = instante_escalado - (time.perf_counter() - inicio)
+                        if restante <= 0:
+                            break
+                        stop_event.wait(min(restante, 0.02))
+                    if stop_event.is_set():
+                        break
+
+                    if tipo == "key_down":
+                        keyboard.press(valor)
+                        teclas_pulsadas.add(valor)
+                    elif tipo == "key_up":
+                        keyboard.release(valor)
+                        teclas_pulsadas.discard(valor)
+                    elif tipo == "mouse_move":
+                        if modo_relativo and origen_ventana:
+                            user32.SetCursorPos(origen_ventana[0] + valor[0], origen_ventana[1] + valor[1])
+                        else:
+                            user32.SetCursorPos(*valor)
+                    elif tipo == "mouse_down":
+                        user32.mouse_event(flags_mouse[valor][0], 0, 0, 0, 0)
+                        botones_pulsados.add(valor)
+                    elif tipo == "mouse_up":
+                        user32.mouse_event(flags_mouse[valor][1], 0, 0, 0, 0)
+                        botones_pulsados.discard(valor)
+            finally:
+                for tecla in teclas_pulsadas:
+                    keyboard.release(tecla)
+                for boton in botones_pulsados:
+                    user32.mouse_event(flags_mouse[boton][1], 0, 0, 0, 0)
+    finally:
+        reproduccion_interrumpida = stop_event.is_set()
+        stop_event.set()
+        mensaje = "Reproducción detenida." if reproduccion_interrumpida else "Reproducción terminada."
+        programar_ui_recorder(mensaje, sonido=True)
+        if not reproduccion_interrumpida:
+            enviar_notificacion("Recorder", "Reproducción de macro terminada.")
+
+def validar_eventos_recorder(eventos):
+    if not isinstance(eventos, (list, tuple)):
+        return []
+
+    eventos_validados = []
+    ultimo_instante = 0.0
+    tipos_validos = {"key_down", "key_up", "mouse_move", "mouse_down", "mouse_up"}
+    botones_validos = {"izquierdo", "derecho", "central"}
+    for evento in eventos:
+        if not isinstance(evento, (list, tuple)) or len(evento) != 3:
+            return []
+        instante, tipo, valor = evento
+        if (
+            isinstance(instante, bool)
+            or not isinstance(instante, (int, float))
+            or instante < ultimo_instante
+            or not isinstance(tipo, str)
+            or tipo not in tipos_validos
+        ):
+            return []
+        if tipo in ("key_down", "key_up"):
+            if not isinstance(valor, str) or not valor:
+                return []
+        elif tipo in ("mouse_down", "mouse_up"):
+            if not isinstance(valor, str) or valor not in botones_validos:
+                return []
+        elif (
+            not isinstance(valor, (list, tuple))
+            or len(valor) != 2
+            or any(isinstance(coordenada, bool) or not isinstance(coordenada, int) for coordenada in valor)
+        ):
+            return []
+        ultimo_instante = float(instante)
+        eventos_validados.append((ultimo_instante, tipo, tuple(valor) if tipo == "mouse_move" else valor))
+    return eventos_validados
+
+def actualizar_lista_macros():
+    combo_macros_recorder.configure(values=sorted(recorder_macros, key=str.casefold))
+
+def actualizar_lista_eventos_recorder():
+    if "lista_eventos_recorder" not in globals():
+        return
+    lista_eventos_recorder.delete(0, tk.END)
+    with recorder_lock:
+        eventos = list(recorder_events)
+    for instante, tipo, valor in eventos:
+        lista_eventos_recorder.insert(tk.END, f"{instante:6.2f}s  {tipo:10s} {valor}")
+
+def eliminar_evento_seleccionado_recorder():
+    seleccion = lista_eventos_recorder.curselection()
+    if not seleccion:
+        messagebox.showwarning("Recorder", "Selecciona una acción de la lista para eliminarla.")
+        return
+    indice = seleccion[0]
+    with recorder_lock:
+        if 0 <= indice < len(recorder_events):
+            del recorder_events[indice]
+    actualizar_lista_eventos_recorder()
+    actualizar_estado_recorder(f"Acción eliminada ({len(recorder_events)} restantes).", app_accent_color)
+
+def guardar_macro_recorder():
+    nombre = entry_nombre_macro.get().strip()
+    with recorder_lock:
+        eventos = list(recorder_events)
+    if not nombre:
+        messagebox.showwarning("Macro", "Escribe un nombre para la macro.")
+        return
+    if not eventos:
+        messagebox.showwarning("Macro", "Graba una secuencia antes de guardarla.")
+        return
+    if nombre in recorder_macros and not messagebox.askyesno(
+        "Reemplazar macro", f"Ya existe una macro llamada {nombre}. ¿Reemplazarla?"
+    ):
+        return
+    recorder_macros[nombre] = eventos
+    recorder_macros_modo[nombre] = recorder_events_modo
+    registrar_log("Macro", f"Guardada: {nombre} ({len(eventos)} acciones)")
+    combo_macros_recorder.set(nombre)
+    actualizar_lista_macros()
+    actualizar_estado_recorder(f"Macro guardada: {nombre}", app_accent_color)
+    guardar_configuracion()
+
+def cargar_macro_recorder():
+    global recorder_events_modo
+    nombre = combo_macros_recorder.get().strip()
+    eventos = recorder_macros.get(nombre)
+    if not eventos:
+        messagebox.showwarning("Macro", "Selecciona una macro guardada.")
+        return
+    if recorder_mode != "idle" or (recorder_playback_stop and not recorder_playback_stop.is_set()):
+        messagebox.showwarning("Macro", "Detén la actividad actual antes de cargar otra macro.")
+        return
+    with recorder_lock:
+        recorder_events[:] = eventos
+    recorder_events_modo = recorder_macros_modo.get(nombre, False)
+    var_recorder_relativo.set(recorder_events_modo)
+    actualizar_lista_eventos_recorder()
+    registrar_log("Macro", f"Cargada: {nombre}")
+    actualizar_estado_recorder(f"Macro lista: {nombre}", app_accent_color)
+
+def eliminar_macro_recorder():
+    nombre = combo_macros_recorder.get().strip()
+    if nombre not in recorder_macros:
+        messagebox.showwarning("Macro", "Selecciona una macro guardada para eliminar.")
+        return
+    if not messagebox.askyesno("Eliminar macro", f"¿Eliminar la macro '{nombre}'? No se puede deshacer."):
+        return
+    del recorder_macros[nombre]
+    recorder_macros_modo.pop(nombre, None)
+    registrar_log("Macro", f"Eliminada: {nombre}")
+    combo_macros_recorder.set("")
+    actualizar_lista_macros()
+    guardar_configuracion()
+    actualizar_estado_recorder(f"Macro eliminada: {nombre}", app_accent_color)
+
+def exportar_macro_recorder():
+    nombre = combo_macros_recorder.get().strip()
+    eventos = recorder_macros.get(nombre)
+    if not eventos:
+        messagebox.showwarning("Macro", "Selecciona una macro guardada para exportar.")
+        return
+    ruta = filedialog.asksaveasfilename(
+        title="Exportar macro",
+        defaultextension=".json",
+        initialfile=f"{nombre}.json",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+    try:
+        with open(ruta, "w", encoding="utf-8") as archivo:
+            json.dump({
+                "name": nombre,
+                "events": eventos,
+                "relative": recorder_macros_modo.get(nombre, False)
+            }, archivo, indent=2)
+        actualizar_estado_recorder(f"Macro exportada: {nombre}", app_accent_color)
+    except OSError as error:
+        messagebox.showerror("Error al exportar macro", str(error))
+
+def importar_macro_recorder():
+    ruta = filedialog.askopenfilename(
+        title="Importar macro",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+    try:
+        with open(ruta, "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
+    except (OSError, json.JSONDecodeError) as error:
+        messagebox.showerror("Error al importar macro", str(error))
+        return
+    nombre = datos.get("name") if isinstance(datos, dict) else None
+    eventos = validar_eventos_recorder(datos.get("events")) if isinstance(datos, dict) else []
+    if not isinstance(nombre, str) or not nombre.strip() or not eventos:
+        messagebox.showerror("Macro no válida", "El archivo no contiene una macro compatible.")
+        return
+    nombre = nombre.strip()
+    if nombre in recorder_macros and not messagebox.askyesno(
+        "Reemplazar macro", f"Ya existe una macro llamada {nombre}. ¿Reemplazarla?"
+    ):
+        return
+    recorder_macros[nombre] = eventos
+    recorder_macros_modo[nombre] = bool(datos.get("relative", False)) if isinstance(datos, dict) else False
+    actualizar_lista_macros()
+    combo_macros_recorder.set(nombre)
+    guardar_configuracion()
+    actualizar_estado_recorder(f"Macro importada: {nombre}", app_accent_color)
+
+# --- LAG SWITCHER ---
+
+def aplicar_regla_firewall(activar=True):
+    ruta_roblox = obtener_ruta_roblox()
+
+    if activar and not ruta_roblox:
+        return False, "No se encontró Roblox. Abre el juego antes de activar el Lag Switch."
+    
+    if win32com:
+        try:
+            fw_policy = win32com.client.Dispatch("HNetCfg.FwPolicy2")
+            rules = fw_policy.Rules
+            
+            try:
+                rules.Remove("RobloxLagSwitch")
+            except Exception:
+                pass
+
+            if activar:
+                rule_obj = win32com.client.Dispatch("HNetCfg.FwRule")
+                rule_obj.Name = "RobloxLagSwitch"
+                rule_obj.ApplicationName = ruta_roblox if ruta_roblox else ""
+                rule_obj.Direction = 2  # Outbound
+                rule_obj.Action = 0     # Block
+                rule_obj.InterfaceTypes = "All"
+                rule_obj.Enabled = True
+                rules.Add(rule_obj)
+            return True, ""
+        except Exception:
+            pass
+
+    try:
+        subprocess.run('netsh advfirewall firewall delete rule name="RobloxLagSwitch"', shell=True, capture_output=True)
+        if activar:
+            cmd = f'netsh advfirewall firewall add rule name="RobloxLagSwitch" dir=out action=block'
+            if ruta_roblox:
+                cmd += f' program="{ruta_roblox}"'
+            resultado = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if resultado.returncode != 0:
+                detalle = resultado.stderr.strip() or resultado.stdout.strip()
+                return False, detalle or "No se pudo añadir la regla. Ejecuta la aplicación como administrador."
+        return True, ""
+    except Exception as error:
+        return False, str(error)
+
+def mostrar_error_lag(mensaje):
+    actualizar_ui_lag_switch()
+    messagebox.showerror("No se pudo activar el Lag Switch", mensaje)
+
+def aplicar_logica_lag():
+    global lag_switch_activo
+    stop_event = lag_switch_stop
+    exito, error = aplicar_regla_firewall(activar=True)
+    if not exito:
+        lag_switch_activo = False
+        root.after(0, lambda: mostrar_error_lag(error))
+        return
+
+    if stop_event.is_set() or not lag_switch_activo:
+        aplicar_regla_firewall(activar=False)
+        return
+    
+    try:
+        milisegundos = float(entry_lag_duracion.get())
+        if milisegundos > 0:
+            if stop_event.wait(milisegundos / 1000.0):
+                return
+            lag_switch_activo = False
+            root.after(0, actualizar_ui_lag_switch)
+        else:
+            stop_event.wait()
+    except ValueError:
+        pass
+
+def toggle_lag_switch(e=None):
+    global lag_switch_activo
+    lag_switch_activo = not lag_switch_activo
+    registrar_log("Lag Switch", "Activado" if lag_switch_activo else "Desactivado", notificar=True)
+    if lag_switch_activo:
+        lag_switch_stop.clear()
+    else:
+        lag_switch_stop.set()
+    root.after(0, actualizar_ui_lag_switch)
+
+def ignorar_hotkey_durante_reproduccion(accion):
+    return (
+        recorder_playback_stop is not None
+        and not recorder_playback_stop.is_set()
+        and accion != "recorder_stop"
+    )
+
+def encolar_hotkey_si_nueva(accion, evento):
+    if evento.event_type == keyboard.KEY_DOWN:
+        if ignorar_hotkey_durante_reproduccion(accion):
+            return
+        if accion not in hotkeys_mantenidas:
+            hotkeys_mantenidas.add(accion)
+            eventos_hotkey.put(accion)
+    else:
+        hotkeys_mantenidas.discard(accion)
+
+def normalizar_nombre_tecla(nombre):
+    nombre = nombre.lower().replace("left ", "").replace("right ", "")
+    return {"windows": "windows", "command": "windows"}.get(nombre, nombre)
+
+def recibir_tecla_para_captura(evento):
+    global captura_hotkey_activa, captura_modificador_suelto
+    nombre = normalizar_nombre_tecla(evento.name)
+    modificadores = {"ctrl", "shift", "alt", "windows"}
+
+    if evento.event_type == keyboard.KEY_DOWN:
+        if evento.scan_code in captura_teclas_pulsadas:
+            return
+        captura_teclas_pulsadas.add(evento.scan_code)
+        if nombre == "esc":
+            eventos_hotkey.put(("hotkey_capture_cancel",))
+        elif nombre in modificadores:
+            captura_modificadores.add(nombre)
+            captura_modificador_suelto = nombre
+        else:
+            combo = "+".join(sorted(captura_modificadores) + [nombre])
+            eventos_hotkey.put(("hotkey_capture_done", combo))
+    else:
+        captura_teclas_pulsadas.discard(evento.scan_code)
+        if nombre in modificadores:
+            captura_modificadores.discard(nombre)
+            if captura_modificador_suelto == nombre and not captura_teclas_pulsadas:
+                eventos_hotkey.put(("hotkey_capture_done", nombre))
+            captura_modificador_suelto = None
+
+def iniciar_captura_hotkey(entry, boton):
+    global captura_hotkey_activa, captura_hotkey_hook
+    global captura_hotkey_entry, captura_hotkey_boton, captura_timeout_id
+
+    cancelar_captura_hotkey()
+    captura_hotkey_activa = True
+    captura_hotkey_entry = entry
+    captura_hotkey_boton = boton
+    captura_teclas_pulsadas.clear()
+    captura_modificadores.clear()
+    boton.config(text="Pulsa tecla...")
+    captura_hotkey_hook = keyboard.hook(recibir_tecla_para_captura, suppress=False)
+    captura_timeout_id = root.after(10000, cancelar_captura_hotkey)
+
+def cancelar_captura_hotkey():
+    global captura_hotkey_activa, captura_hotkey_hook, captura_hotkey_entry
+    global captura_hotkey_boton, captura_timeout_id
+
+    if captura_hotkey_hook is not None:
+        keyboard.unhook(captura_hotkey_hook)
+    if captura_timeout_id is not None:
+        try:
+            root.after_cancel(captura_timeout_id)
+        except tk.TclError:
+            pass
+    if captura_hotkey_boton is not None:
+        captura_hotkey_boton.config(text="Asignar")
+    captura_hotkey_activa = False
+    captura_hotkey_hook = None
+    captura_hotkey_entry = None
+    captura_hotkey_boton = None
+    captura_timeout_id = None
+    captura_teclas_pulsadas.clear()
+    captura_modificadores.clear()
+    captura_modificador_suelto = None
+
+def finalizar_captura_hotkey(tecla):
+    guardar_y_registrar = (
+        captura_hotkey_entry is entry_auto_train_key
+        or captura_hotkey_entry in recorder_hotkey_entries.values()
+    )
+    if captura_hotkey_entry is not None:
+        captura_hotkey_entry.delete(0, tk.END)
+        captura_hotkey_entry.insert(0, tecla)
+    cancelar_captura_hotkey()
+    if guardar_y_registrar:
+        actualizar_hotkeys()
+
+def registrar_hotkey(tecla, accion):
+    partes = [parte.strip().lower() for parte in tecla.split("+") if parte.strip()]
+    if not partes:
+        return None
+
+    codigos = [set(keyboard.key_to_scan_codes(parte)) for parte in partes]
+    if any(not codigos_parte for codigos_parte in codigos):
+        raise ValueError(f"Tecla no reconocida en el atajo: {tecla}")
+
+    if len(partes) == 1:
+        return keyboard.hook_key(
+            partes[0],
+            lambda evento: encolar_hotkey_si_nueva(accion, evento),
+            suppress=False
+        )
+
+    codigos_disparador = codigos[-1]
+    codigos_modificadores = codigos[:-1]
+    presionadas = set()
+    disparado = False
+
+    def detectar_combinacion(evento):
+        nonlocal disparado
+        if evento.event_type == keyboard.KEY_DOWN:
+            presionadas.add(evento.scan_code)
+            if (
+                evento.scan_code in codigos_disparador
+                and not disparado
+                and not ignorar_hotkey_durante_reproduccion(accion)
+                and all(presionadas.intersection(codigos_parte) for codigos_parte in codigos_modificadores)
+            ):
+                disparado = True
+                eventos_hotkey.put(accion)
+        else:
+            presionadas.discard(evento.scan_code)
+            if evento.scan_code in codigos_disparador:
+                disparado = False
+
+    return keyboard.hook(detectar_combinacion, suppress=False)
+
+def procesar_eventos_hotkey():
+    global fast_gun_swap_activo, fast_gun_swap_stop, auto_train_activo, auto_train_stop
+    while not eventos_hotkey.empty():
+        evento = eventos_hotkey.get()
+        if isinstance(evento, tuple) and evento[0] == "fast_swap_done":
+            if evento[1] == fast_gun_swap_generation:
+                fast_gun_swap_activo = False
+                fast_gun_swap_stop = None
+                lbl_fast_gun_swap.config(text="Fast Gun Swap: detenido", fg="#aaaaaa")
+        elif isinstance(evento, tuple) and evento[0] == "auto_train_done":
+            if evento[1] == auto_train_generation:
+                auto_train_activo = False
+                auto_train_stop = None
+                btn_auto_train.config(text="Iniciar Auto Train", bg="#2d2d2d")
+                lbl_auto_train_estado.config(text="Auto Train: detenido", fg="#aaaaaa")
+        elif isinstance(evento, tuple) and evento[0] == "recorder_status":
+            actualizar_estado_recorder(evento[1], evento[2])
+        elif isinstance(evento, tuple) and evento[0] == "recorder_sound":
+            root.bell()
+        elif isinstance(evento, tuple) and evento[0] == "recorder_countdown":
+            restante, total = evento[1], evento[2]
+            if restante is None or not total:
+                barra_recorder_countdown["value"] = 0
+            else:
+                barra_recorder_countdown["value"] = max(0, min(100, (total - restante) / total * 100))
+        elif isinstance(evento, tuple) and evento[0] == "recorder_events_ready":
+            actualizar_lista_eventos_recorder()
+        elif isinstance(evento, tuple) and evento[0] == "afk_countdown":
+            segundos, total = evento[1], evento[2]
+            if segundos is None:
+                lbl_afk_countdown.config(text="Próxima acción: --")
+                barra_afk_countdown["value"] = 0
+            elif segundos <= 0:
+                lbl_afk_countdown.config(text="Próxima acción: ahora")
+                barra_afk_countdown["value"] = 100
+            else:
+                lbl_afk_countdown.config(text=f"Próxima acción en: {segundos}s")
+                if total:
+                    barra_afk_countdown["value"] = max(0, min(100, (total - segundos) / total * 100))
+        elif isinstance(evento, tuple) and evento[0] == "afk_historial_actualizado":
+            actualizar_lista_historial_afk()
+        elif isinstance(evento, tuple) and evento[0] == "log_actualizado":
+            actualizar_lista_log_global()
+        elif isinstance(evento, tuple) and evento[0] == "hotkey_capture_done":
+            finalizar_captura_hotkey(evento[1])
+        elif isinstance(evento, tuple) and evento[0] == "hotkey_capture_cancel":
+            cancelar_captura_hotkey()
+        elif evento == "afk":
+            toggle_anti_afk()
+        elif evento == "click":
+            toggle_autoclicker()
+        elif evento == "lag":
+            toggle_lag_switch()
+        elif evento == "shuffle":
+            ejecutar_shuffle_reload()
+        elif evento == "fast_swap":
+            toggle_fast_gun_swap()
+        elif evento == "auto_train":
+            toggle_auto_train()
+        elif evento == "recorder_start":
+            iniciar_grabacion_recorder()
+        elif evento == "recorder_play":
+            reproducir_recorder()
+        elif evento == "recorder_stop":
+            detener_recorder()
+    root.after(20, procesar_eventos_hotkey)
+
+def actualizar_ui_lag_switch():
+    if lag_switch_activo:
+        btn_lagswitch.config(text="Desactivar Lag Switch", bg="#552222")
+        threading.Thread(target=aplicar_logica_lag, daemon=True).start()
+    else:
+        threading.Thread(target=lambda: aplicar_regla_firewall(activar=False), daemon=True).start()
+        btn_lagswitch.config(text="Activar Lag Switch", bg="#2d2d2d")
+
+def detener_todo():
+    global anti_afk_activo, autoclicker_activo, lag_switch_activo
+    global fast_gun_swap_activo, fast_gun_swap_stop, auto_train_activo
+
+    anti_afk_activo = False
+    autoclicker_activo = False
+    lag_switch_activo = False
+    lag_switch_stop.set()
+
+    if shuffle_stop:
+        shuffle_stop.set()
+    if fast_gun_swap_stop:
+        fast_gun_swap_stop.set()
+    fast_gun_swap_activo = False
+    if auto_train_stop:
+        auto_train_stop.set()
+    auto_train_activo = False
+
+    btn_antiafk.config(text="Activar Anti-AFK", bg="#2d2d2d")
+    btn_autoclicker.config(text="Activar Autoclicker", bg="#2d2d2d")
+    btn_lagswitch.config(text="Activar Lag Switch", bg="#2d2d2d")
+    lbl_fast_gun_swap.config(text="Fast Gun Swap: detenido", fg="#aaaaaa")
+    btn_auto_train.config(text="Iniciar Auto Train", bg="#2d2d2d")
+    lbl_auto_train_estado.config(text="Auto Train: detenido", fg="#aaaaaa")
+    threading.Thread(
+        target=lambda: aplicar_regla_firewall(activar=False),
+        daemon=True
+    ).start()
+
+# --- ANTI-AFK ---
+
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+def obtener_inactividad_ms():
+    """Milisegundos desde la última actividad real de teclado/mouse en todo el sistema."""
+    try:
+        info = LASTINPUTINFO()
+        info.cbSize = ctypes.sizeof(LASTINPUTINFO)
+        if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(info)):
+            tick_actual = ctypes.windll.kernel32.GetTickCount()
+            return max(0, tick_actual - info.dwTime)
+    except Exception:
+        pass
+    return 0
+
+tiempo_inicio_app = time.time()
+estadisticas = {"clics": 0, "acciones_afk": 0, "macros_reproducidas": 0, "grabaciones": 0}
+
+log_global = []
+
+def registrar_log(categoria, texto, notificar=False):
+    marca = time.strftime("%H:%M:%S")
+    log_global.append(f"{marca}  [{categoria}]  {texto}")
+    del log_global[:-200]
+    eventos_hotkey.put(("log_actualizado",))
+    if notificar:
+        enviar_notificacion(categoria, texto)
+
+def actualizar_lista_log_global():
+    if "lista_log_global" not in globals():
+        return
+    lista_log_global.delete(0, tk.END)
+    for linea in reversed(log_global):
+        lista_log_global.insert(tk.END, linea)
+
+def exportar_log_global():
+    if not log_global:
+        messagebox.showinfo("Registro", "El registro está vacío.")
+        return
+    ruta = filedialog.asksaveasfilename(
+        title="Exportar registro",
+        defaultextension=".txt",
+        initialfile="ggspqe_registro.txt",
+        filetypes=[("Archivo de texto", "*.txt")]
+    )
+    if not ruta:
+        return
+    try:
+        with open(ruta, "w", encoding="utf-8") as archivo:
+            archivo.write("\n".join(log_global))
+        mostrar_banner("Registro exportado correctamente.", "exito")
+    except OSError as error:
+        messagebox.showerror("Error al exportar", str(error))
+
+def limpiar_log_global():
+    if not messagebox.askyesno("Limpiar registro", "¿Borrar todo el historial de este registro?"):
+        return
+    log_global.clear()
+    actualizar_lista_log_global()
+
+afk_historial = []
+
+def registrar_historial_afk(texto):
+    marca = time.strftime("%H:%M:%S")
+    afk_historial.append(f"{marca} - {texto}")
+    del afk_historial[:-50]
+    eventos_hotkey.put(("afk_historial_actualizado",))
+    registrar_log("Anti-AFK", texto)
+
+def actualizar_lista_historial_afk():
+    if "lista_historial_afk" not in globals():
+        return
+    lista_historial_afk.delete(0, tk.END)
+    for linea in reversed(afk_historial):
+        lista_historial_afk.insert(tk.END, linea)
+
+def ejecutar_accion_afk():
+    accion = combo_accion_afk.get()
+    if "Aleatorio" in accion:
+        accion = random.choice(["Saltar (Espacio)", "Caminar (W)", "Mover Cámara"])
+
+    if var_afk_sonido.get() and sonidos_activos:
+        try:
+            ctypes.windll.kernel32.Beep(600, 35)
+        except Exception:
+            pass
+
+    try:
+        if "Espacio" in accion:
+            presionar_tecla_nativo(" ")
+        elif "W" in accion:
+            presionar_tecla_nativo("w")
+        elif "Cámara" in accion:
+            ctypes.windll.user32.mouse_event(0x0001, 15, 0, 0, 0)
+            time.sleep(0.05)
+            ctypes.windll.user32.mouse_event(0x0001, -15, 0, 0, 0)
+        registrar_historial_afk(accion)
+        estadisticas["acciones_afk"] += 1
+    except Exception:
+        pass
+
+def loop_anti_afk():
+    global anti_afk_activo
+    while anti_afk_activo:
+        try:
+            segundos_min = max(1.0, float(entry_afk_tiempo.get()))
+        except ValueError:
+            segundos_min = 60.0
+
+        if var_afk_aleatorio.get():
+            try:
+                segundos_max = max(segundos_min, float(entry_afk_tiempo_max.get()))
+            except ValueError:
+                segundos_max = segundos_min + 30.0
+            segundos_espera = random.uniform(segundos_min, segundos_max)
+        else:
+            segundos_espera = segundos_min
+
+        objetivo = time.perf_counter() + segundos_espera
+        ultimo_mostrado = None
+        while anti_afk_activo:
+            restante = objetivo - time.perf_counter()
+            if restante <= 0:
+                break
+            restante_redondeado = round(restante)
+            if restante_redondeado != ultimo_mostrado:
+                ultimo_mostrado = restante_redondeado
+                eventos_hotkey.put(("afk_countdown", restante_redondeado, segundos_espera))
+            time.sleep(min(restante, 0.05))
+        else:
+            eventos_hotkey.put(("afk_countdown", None, None))
+            return
+        if not anti_afk_activo:
+            eventos_hotkey.put(("afk_countdown", None, None))
+            return
+        eventos_hotkey.put(("afk_countdown", 0, segundos_espera))
+
+        if anti_afk_activo and esta_en_roblox():
+            if var_afk_pausa_activo.get():
+                try:
+                    umbral_seg = max(0.5, float(entry_afk_umbral_actividad.get()))
+                except ValueError:
+                    umbral_seg = 5.0
+                if obtener_inactividad_ms() < umbral_seg * 1000:
+                    registrar_historial_afk("Omitido (ya estás activo)")
+                    continue
+            ejecutar_accion_afk()
+
+def toggle_anti_afk(e=None):
+    global anti_afk_activo
+    anti_afk_activo = not anti_afk_activo
+    registrar_log("Anti-AFK", "Activado" if anti_afk_activo else "Desactivado", notificar=True)
+    root.after(0, actualizar_ui_afk)
+
+def actualizar_ui_afk():
+    if anti_afk_activo:
+        btn_antiafk.config(text="Desactivar Anti-AFK", bg="#552222")
+        threading.Thread(target=loop_anti_afk, daemon=True).start()
+    else:
+        btn_antiafk.config(text="Activar Anti-AFK", bg="#2d2d2d")
+        lbl_afk_countdown.config(text="Próxima acción: --")
+
+# --- AUTOCLICKER ---
+
+def hacer_clic_nativo():
+    tipo_clic = combo_tipo_clic.get()
+    if "Derecho" in tipo_clic:
+        DOWN, UP = 0x0008, 0x0010
+    else:
+        DOWN, UP = 0x0002, 0x0004
+
+    ctypes.windll.user32.mouse_event(DOWN, 0, 0, 0, 0)
+    estadisticas["clics"] += 1
+    time.sleep(random.uniform(0.01, 0.03))
+    ctypes.windll.user32.mouse_event(UP, 0, 0, 0, 0)
+
+def loop_autoclicker():
+    global autoclicker_activo
+    while autoclicker_activo:
+        try:
+            milisegundos = float(entry_click_tiempo.get())
+            if milisegundos < 5:
+                milisegundos = 5
+            intervalo = milisegundos / 1000.0
+        except ValueError:
+            intervalo = 0.1
+
+        if esta_en_roblox():
+            hacer_clic_nativo()
+
+        fluctuacion = random.uniform(-0.005, 0.005)
+        tiempo_espera = max(0.001, intervalo + fluctuacion)
+        time.sleep(tiempo_espera)
+
+def toggle_autoclicker(e=None):
+    global autoclicker_activo
+    autoclicker_activo = not autoclicker_activo
+    registrar_log("Autoclicker", "Activado" if autoclicker_activo else "Desactivado", notificar=True)
+    root.after(0, actualizar_ui_autoclicker)
+
+def actualizar_ui_autoclicker():
+    if autoclicker_activo:
+        btn_autoclicker.config(text="Desactivar Autoclicker", bg="#552222")
+        threading.Thread(target=loop_autoclicker, daemon=True).start()
+    else:
+        btn_autoclicker.config(text="Activar Autoclicker", bg="#2d2d2d")
+
+# --- CONFIGURACIÓN DE TECLAS Y PERSISTENCIA (JSON) ---
+
+def identidad_hotkey(tecla):
+    partes = [parte.strip().lower() for parte in tecla.split("+") if parte.strip()]
+    if not partes:
+        return None
+    codigos = [frozenset(keyboard.key_to_scan_codes(parte)) for parte in partes]
+    if any(not codigos_parte for codigos_parte in codigos):
+        raise ValueError(f"Tecla no reconocida en el atajo: {tecla}")
+    return frozenset(codigos)
+
+def encontrar_conflictos_hotkeys(atajos):
+    propietarios = {}
+    for nombre, tecla in atajos:
+        if not tecla:
+            continue
+        identidad = identidad_hotkey(tecla)
+        propietarios.setdefault(identidad, []).append(nombre)
+    return [nombres for nombres in propietarios.values() if len(nombres) > 1]
+
+def actualizar_hotkeys():
+    global hotkeys_registradas
+
+    atajos = (
+        ("Anti-AFK", entry_key_afk.get().strip().lower()),
+        ("Autoclicker", entry_key_click.get().strip().lower()),
+        ("Lag Switch", entry_key_lag.get().strip().lower()),
+        ("Shuffle Reload", entry_key_shuffle.get().strip().lower()),
+        ("Fast Gun Swap", entry_fast_swap_key.get().strip().lower()),
+        ("Auto Train", entry_auto_train_key.get().strip().lower()),
+        ("Recorder - Grabar", recorder_hotkey_entries["start"].get().strip().lower()),
+        ("Recorder - Reproducir", recorder_hotkey_entries["play"].get().strip().lower()),
+        ("Recorder - Detener", recorder_hotkey_entries["stop"].get().strip().lower())
+    )
+    try:
+        conflictos = encontrar_conflictos_hotkeys(atajos)
+    except ValueError as error:
+        messagebox.showerror("Atajo no válido", str(error))
+        return
+    if conflictos:
+        detalle = "\n".join(" y ".join(nombres) for nombres in conflictos)
+        messagebox.showerror("Atajos repetidos", f"Asigna teclas distintas a estas funciones:\n{detalle}")
+        return
+
+    for hk in hotkeys_registradas:
+        try:
+            hk()
+        except Exception:
+            pass
+    hotkeys_registradas.clear()
+    hotkeys_mantenidas.clear()
+
+    try:
+        for (nombre, tecla), accion in zip(atajos, (
+            "afk", "click", "lag", "shuffle", "fast_swap", "auto_train",
+            "recorder_start", "recorder_play", "recorder_stop"
+        )):
+            if tecla:
+                hotkeys_registradas.append(registrar_hotkey(tecla, accion))
+
+        guardar_configuracion()
+        if not fast_gun_swap_activo:
+            lbl_fast_gun_swap.config(
+                text=f"Fast Gun Swap: atajo {atajos[4][1].upper()} guardado",
+                fg="#aaaaaa"
+            )
+    except Exception as err:
+        messagebox.showerror("Error registrando atajos", str(err))
+
+def guardar_configuracion():
+    global perfiles_config
+    perfiles_config[perfil_activo] = obtener_configuracion_actual()
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump({
+                "active_profile": perfil_activo,
+                "profiles": perfiles_config,
+                "intro_animation": var_intro_animacion.get(),
+                "roblox_username": roblox_profile_username,
+                "app_accent_color": app_accent_color,
+                "app_theme": app_theme_name,
+                "app_ui_scale": app_ui_scale,
+                "app_opacidad": app_opacidad,
+                "profile_colors": perfil_colores,
+                "menu_order": orden_secciones,
+                "recorder_macros": recorder_macros,
+                "recorder_macros_modo": recorder_macros_modo,
+                "app_sounds_enabled": sonidos_activos,
+                "recorder_notifications": avisos_recorder_activos,
+                "minimizar_a_bandeja": var_bandeja_al_cerrar.get(),
+                "notificaciones_activas": var_notificaciones_activas.get(),
+                "esquinas_redondeadas": var_esquinas_redondeadas.get(),
+                "estadisticas": estadisticas
+            }, f, indent=4)
+    except Exception:
+        pass
+
+def mezclar_colores(color_primario, color_secundario, proporcion):
+    componentes_primarios = tuple(int(color_primario[indice:indice + 2], 16) for indice in (1, 3, 5))
+    componentes_secundarios = tuple(int(color_secundario[indice:indice + 2], 16) for indice in (1, 3, 5))
+    componentes = tuple(
+        round(primario * (1 - proporcion) + secundario * proporcion)
+        for primario, secundario in zip(componentes_primarios, componentes_secundarios)
+    )
+    return "#" + "".join(f"{componente:02x}" for componente in componentes)
+
+def aplicar_paleta_app(nueva_paleta):
+    global app_theme_palette, app_accent_color
+
+    paleta_anterior = app_theme_palette or APP_THEMES["GGSPQE"]
+    colores_base = {
+        "#121212": "bg", "#1e1e1e": "top", "#181818": "sidebar",
+        "#222222": "panel", "#333333": "panel_alt", "#2d2d2d": "input",
+        "#ffffff": "text", "#aaaaaa": "muted", "#00ffcc": "accent",
+        "#a8cbb8": "accent_light", "#00cc88": "accent_light", "#00aa66": "accent_light",
+        "#1f4037": "button", "#2f5f52": "button_active",
+        "#552222": "danger", "#773333": "danger_active"
+    }
+    mapa_colores = {origen: nueva_paleta[rol] for origen, rol in colores_base.items()}
+    mapa_colores.update({
+        valor_anterior: nueva_paleta[rol]
+        for rol, valor_anterior in paleta_anterior.items()
+    })
+
+    def recolorear(widget):
+        for opcion in ("bg", "fg", "activebackground", "activeforeground", "selectcolor", "highlightbackground", "highlightcolor"):
+            try:
+                valor_actual = widget.cget(opcion).lower()
+                if valor_actual in mapa_colores:
+                    widget.configure(**{opcion: mapa_colores[valor_actual]})
+            except (tk.TclError, AttributeError):
+                pass
+        for hijo in widget.winfo_children():
+            recolorear(hijo)
+
+    recolorear(root)
+    estilo = ttk.Style(root)
+    if "clam" in estilo.theme_names() and estilo.theme_use() != "clam":
+        estilo.theme_use("clam")
+    estilo.configure(
+        "TCombobox",
+        fieldbackground=nueva_paleta["input"],
+        background=nueva_paleta["input"],
+        foreground=nueva_paleta["text"],
+        arrowcolor=nueva_paleta["accent"]
+    )
+    estilo.map(
+        "TCombobox",
+        fieldbackground=[("readonly", nueva_paleta["input"])],
+        foreground=[("readonly", nueva_paleta["text"])],
+        selectbackground=[("readonly", nueva_paleta["input"])],
+        selectforeground=[("readonly", nueva_paleta["text"])]
+    )
+    app_theme_palette = dict(nueva_paleta)
+    app_accent_color = nueva_paleta["accent"]
+    if "lbl_muestra_color" in globals():
+        lbl_muestra_color.config(bg=app_accent_color)
+    if "combo_perfiles" in globals() and "lbl_muestra_color_perfil" in globals():
+        actualizar_muestra_color_perfil()
+    if "frame_superior_borde" in globals():
+        frame_superior_borde.config(bg=app_accent_color)
+
+def aplicar_tema_app(nombre_tema):
+    global app_theme_name
+    if nombre_tema not in APP_THEMES:
+        return
+    app_theme_name = nombre_tema
+    aplicar_paleta_app(APP_THEMES[nombre_tema])
+    if "combo_tema_app" in globals():
+        combo_tema_app.set(nombre_tema)
+    guardar_configuracion()
+
+def aplicar_color_app(color):
+    color = color.lower()
+    paleta_personalizada = dict(app_theme_palette or APP_THEMES[app_theme_name])
+    paleta_personalizada["accent"] = color
+    paleta_personalizada["accent_light"] = mezclar_colores(color, "#ffffff", 0.18)
+    paleta_personalizada["button"] = mezclar_colores(color, paleta_personalizada["bg"], 0.68)
+    paleta_personalizada["button_active"] = mezclar_colores(color, paleta_personalizada["bg"], 0.53)
+    aplicar_paleta_app(paleta_personalizada)
+
+def aplicar_escala_app(factor):
+    global app_ui_scale
+    try:
+        factor = float(factor)
+        if factor not in (0.9, 1.0, 1.15):
+            return
+        root.tk.call("tk", "scaling", escala_tk_base * factor)
+        app_ui_scale = factor
+        root.update_idletasks()
+    except (tk.TclError, NameError):
+        return
+    guardar_configuracion()
+
+def elegir_color_app():
+    resultado = colorchooser.askcolor(
+        color=app_accent_color,
+        parent=root,
+        title="Elegir color de acento"
+    )
+    if resultado[1]:
+        aplicar_color_app(resultado[1].lower())
+        guardar_configuracion()
+
+def elegir_tema_app(event=None):
+    aplicar_tema_app(combo_tema_app.get())
+
+def elegir_escala_app(event=None):
+    factores = {"Compacta": 0.9, "Normal": 1.0, "Grande": 1.15}
+    aplicar_escala_app(factores.get(combo_escala_app.get(), 1.0))
+
+def aplicar_opacidad(valor):
+    global app_opacidad
+    try:
+        porcentaje = int(float(valor))
+    except (TypeError, ValueError):
+        porcentaje = 100
+    app_opacidad = max(60, min(100, porcentaje))
+    try:
+        root.attributes("-alpha", app_opacidad / 100)
+    except tk.TclError:
+        pass
+
+def guardar_opacidad(event=None):
+    guardar_configuracion()
+
+def aplicar_esquinas_redondeadas():
+    """Esquinas redondeadas nativas en Windows 11 (sin efecto en Windows 10)."""
+    try:
+        GA_ROOT = 2
+        DWMWA_WINDOW_CORNER_PREFERENCE = 33
+        DWMWCP_ROUND = 2
+        DWMWCP_DEFAULT = 0
+        hwnd = ctypes.windll.user32.GetAncestor(root.winfo_id(), GA_ROOT)
+        preferencia = DWMWCP_ROUND if var_esquinas_redondeadas.get() else DWMWCP_DEFAULT
+        valor = ctypes.c_int(preferencia)
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ctypes.byref(valor), ctypes.sizeof(valor)
+        )
+    except Exception:
+        pass
+
+def alternar_esquinas_redondeadas():
+    aplicar_esquinas_redondeadas()
+    guardar_configuracion()
+
+def guardar_opciones_audio():
+    global sonidos_activos, avisos_recorder_activos
+    sonidos_activos = var_sonidos_app.get()
+    avisos_recorder_activos = var_avisos_recorder.get()
+    if avisos_recorder_activos:
+        lbl_recorder_estado.pack(pady=8)
+    else:
+        lbl_recorder_estado.pack_forget()
+    guardar_configuracion()
+
+def actualizar_muestra_color_perfil(event=None):
+    nombre = combo_perfiles.get().strip()
+    color = perfil_colores.get(nombre, app_accent_color)
+    lbl_muestra_color_perfil.config(bg=color)
+
+def elegir_color_perfil():
+    nombre = combo_perfiles.get().strip()
+    if nombre not in perfiles_config:
+        messagebox.showwarning("Color de perfil", "Guarda o selecciona un perfil primero.")
+        return
+    resultado = colorchooser.askcolor(
+        color=perfil_colores.get(nombre, app_accent_color),
+        parent=root,
+        title=f"Color del perfil {nombre}"
+    )
+    if resultado[1]:
+        perfil_colores[nombre] = resultado[1].lower()
+        actualizar_muestra_color_perfil()
+        guardar_configuracion()
+
+def mover_seccion_menu(direccion):
+    seleccion = lista_orden_menu.curselection()
+    if not seleccion:
+        return
+    indice = seleccion[0]
+    nuevo_indice = indice + direccion
+    if not 0 <= nuevo_indice < len(orden_secciones):
+        return
+    orden_secciones[indice], orden_secciones[nuevo_indice] = (
+        orden_secciones[nuevo_indice], orden_secciones[indice]
+    )
+    actualizar_lista_orden_menu(nuevo_indice)
+    aplicar_orden_menu()
+    guardar_configuracion()
+
+def actualizar_lista_orden_menu(indice_seleccionado=0):
+    lista_orden_menu.delete(0, tk.END)
+    for seccion in orden_secciones:
+        lista_orden_menu.insert(tk.END, seccion)
+    if orden_secciones:
+        indice = min(max(0, indice_seleccionado), len(orden_secciones) - 1)
+        lista_orden_menu.selection_set(indice)
+
+def aplicar_orden_menu():
+    global menu_juegos_desplegado
+    if "btn_roblox" not in globals() or not orden_secciones:
+        return
+    frame_sub_juegos.pack_forget()
+    menu_juegos_desplegado = False
+    btn_juegos.config(text="▶ Juegos")
+    widgets = {
+        "Roblox": fila_roblox,
+        "Juegos": fila_juegos,
+        "Texturas": btn_texturas,
+        "Recorder": fila_recorder,
+        "Registro": btn_registro,
+        "Estadísticas": btn_estadisticas,
+        "Preferencias": btn_opcion3
+    }
+    for widget in widgets.values():
+        widget.pack_forget()
+    for seccion in orden_secciones:
+        widgets[seccion].pack(pady=5 if seccion != "Roblox" else 10, padx=10, fill=tk.X)
+    btn_detener_todo.pack_forget()
+    btn_detener_todo.pack(pady=(20, 5), padx=10)
+
+def obtener_configuracion_actual():
+    return {
+        "afk_tiempo": entry_afk_tiempo.get(),
+        "afk_tiempo_max": entry_afk_tiempo_max.get(),
+        "afk_aleatorio": var_afk_aleatorio.get(),
+        "afk_key": entry_key_afk.get(),
+        "afk_accion": combo_accion_afk.get(),
+        "afk_pausa_activo": var_afk_pausa_activo.get(),
+        "afk_umbral_actividad": entry_afk_umbral_actividad.get(),
+        "afk_sonido": var_afk_sonido.get(),
+        "click_tiempo": entry_click_tiempo.get(),
+        "click_key": entry_key_click.get(),
+        "click_tipo": combo_tipo_clic.get(),
+        "lag_key": entry_key_lag.get(),
+        "lag_duracion": entry_lag_duracion.get(),
+        "shuffle_key": entry_key_shuffle.get(),
+        "shuffle_delay": entry_shuffle_delay.get(),
+        "fast_swap_key": entry_fast_swap_key.get(),
+        "fast_swap_delay": entry_fast_swap_delay.get(),
+        "fast_swap_secondary_key": entry_fast_swap_secondary.get(),
+        "fast_swap_hold": var_fast_swap_hold.get(),
+        "slot1": var_slot1.get(),
+        "slot2": var_slot2.get(),
+        "slot3": var_slot3.get(),
+        "slot4": var_slot4.get(),
+        "beep": var_beep.get(),
+        "auto_train_slot1": var_auto_train_slot1.get(),
+        "auto_train_slot2": var_auto_train_slot2.get(),
+        "auto_train_slot3": var_auto_train_slot3.get(),
+        "auto_train_slot4": var_auto_train_slot4.get(),
+        "auto_train_click": var_auto_train_click.get(),
+        "auto_train_click_type": combo_auto_train_click_type.get(),
+        "auto_train_delay": entry_auto_train_delay.get(),
+        "auto_train_key": entry_auto_train_key.get(),
+        "recorder_start_key": recorder_hotkey_entries["start"].get(),
+        "recorder_play_key": recorder_hotkey_entries["play"].get(),
+        "recorder_stop_key": recorder_hotkey_entries["stop"].get()
+    }
+
+def aplicar_configuracion(config):
+    entry_afk_tiempo.delete(0, tk.END); entry_afk_tiempo.insert(0, config.get("afk_tiempo", "60"))
+    entry_afk_tiempo_max.delete(0, tk.END); entry_afk_tiempo_max.insert(0, config.get("afk_tiempo_max", "90"))
+    var_afk_aleatorio.set(config.get("afk_aleatorio", False))
+    entry_key_afk.delete(0, tk.END); entry_key_afk.insert(0, config.get("afk_key", "f1"))
+    combo_accion_afk.set(config.get("afk_accion", "Saltar (Espacio)"))
+    var_afk_pausa_activo.set(config.get("afk_pausa_activo", False))
+    entry_afk_umbral_actividad.delete(0, tk.END); entry_afk_umbral_actividad.insert(0, config.get("afk_umbral_actividad", "5"))
+    var_afk_sonido.set(config.get("afk_sonido", False))
+
+    entry_click_tiempo.delete(0, tk.END); entry_click_tiempo.insert(0, config.get("click_tiempo", "100"))
+    entry_key_click.delete(0, tk.END); entry_key_click.insert(0, config.get("click_key", "f2"))
+    combo_tipo_clic.set(config.get("click_tipo", "Clic Izquierdo"))
+
+    entry_key_lag.delete(0, tk.END); entry_key_lag.insert(0, config.get("lag_key", "f3"))
+    entry_lag_duracion.delete(0, tk.END); entry_lag_duracion.insert(0, config.get("lag_duracion", "3000"))
+
+    entry_key_shuffle.delete(0, tk.END); entry_key_shuffle.insert(0, config.get("shuffle_key", "r"))
+    entry_shuffle_delay.delete(0, tk.END); entry_shuffle_delay.insert(0, config.get("shuffle_delay", "50"))
+    entry_fast_swap_key.delete(0, tk.END); entry_fast_swap_key.insert(0, config.get("fast_swap_key", "f4"))
+    entry_fast_swap_delay.delete(0, tk.END); entry_fast_swap_delay.insert(0, config.get("fast_swap_delay", "50"))
+    entry_fast_swap_secondary.delete(0, tk.END); entry_fast_swap_secondary.insert(0, config.get("fast_swap_secondary_key", "shift"))
+
+    var_fast_swap_hold.set(config.get("fast_swap_hold", False))
+    var_slot1.set(config.get("slot1", True))
+    var_slot2.set(config.get("slot2", True))
+    var_slot3.set(config.get("slot3", True))
+    var_slot4.set(config.get("slot4", False))
+    var_beep.set(config.get("beep", True))
+    var_auto_train_slot1.set(config.get("auto_train_slot1", True))
+    var_auto_train_slot2.set(config.get("auto_train_slot2", True))
+    var_auto_train_slot3.set(config.get("auto_train_slot3", True))
+    var_auto_train_slot4.set(config.get("auto_train_slot4", True))
+    var_auto_train_click.set(config.get("auto_train_click", True))
+    combo_auto_train_click_type.set(config.get("auto_train_click_type", "Clic Izquierdo"))
+    entry_auto_train_delay.delete(0, tk.END)
+    entry_auto_train_delay.insert(0, config.get("auto_train_delay", "100"))
+    entry_auto_train_key.delete(0, tk.END)
+    entry_auto_train_key.insert(0, config.get("auto_train_key", "f5"))
+    for accion, valor_predeterminado in (("start", "f6"), ("play", "f7"), ("stop", "f8")):
+        entrada = recorder_hotkey_entries[accion]
+        entrada.delete(0, tk.END)
+        entrada.insert(0, config.get(f"recorder_{accion}_key", valor_predeterminado))
+
+def guardar_perfil():
+    global perfil_activo, perfiles_config
+    nombre = entry_perfil_nombre.get().strip() or combo_perfiles.get().strip()
+    if not nombre:
+        messagebox.showwarning("Perfil", "Escribe un nombre para el perfil.")
+        return
+    perfil_activo = nombre
+    perfiles_config[perfil_activo] = obtener_configuracion_actual()
+    perfil_colores.setdefault(perfil_activo, app_accent_color)
+    combo_perfiles.configure(values=sorted(perfiles_config))
+    combo_perfiles.set(perfil_activo)
+    actualizar_muestra_color_perfil()
+    entry_perfil_nombre.delete(0, tk.END)
+    guardar_configuracion()
+
+def cargar_perfil():
+    global perfil_activo
+    nombre = combo_perfiles.get().strip()
+    if nombre not in perfiles_config:
+        messagebox.showwarning("Perfil", "Selecciona un perfil guardado.")
+        return
+    detener_todo()
+    perfil_activo = nombre
+    aplicar_configuracion(perfiles_config[nombre])
+    actualizar_muestra_color_perfil()
+    actualizar_hotkeys()
+
+def exportar_perfil():
+    nombre = combo_perfiles.get().strip()
+    if nombre not in perfiles_config:
+        messagebox.showwarning("Perfil", "Selecciona un perfil guardado para exportar.")
+        return
+
+    ruta = filedialog.asksaveasfilename(
+        title="Exportar perfil",
+        defaultextension=".json",
+        initialfile="perfil.json",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+
+    try:
+        with open(ruta, "w", encoding="utf-8") as archivo:
+            json.dump({
+                "name": nombre,
+                "config": perfiles_config[nombre],
+                "color": perfil_colores.get(nombre, app_accent_color)
+            }, archivo, indent=4)
+        mostrar_banner(f"Perfil exportado: {nombre}.", "exito")
+    except OSError as error:
+        messagebox.showerror("Error al exportar", str(error))
+
+def importar_perfil():
+    global perfil_activo, perfiles_config
+    ruta = filedialog.askopenfilename(
+        title="Importar perfil",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+
+    try:
+        with open(ruta, "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
+    except (OSError, json.JSONDecodeError) as error:
+        messagebox.showerror("Error al importar", f"No se pudo leer el archivo JSON:\n{error}")
+        return
+
+    nombre = datos.get("name") if isinstance(datos, dict) else None
+    config = datos.get("config") if isinstance(datos, dict) else None
+    color_perfil = datos.get("color", app_accent_color) if isinstance(datos, dict) else app_accent_color
+    if not isinstance(color_perfil, str):
+        messagebox.showerror("Perfil no válido", "El color del perfil no es válido.")
+        return
+    try:
+        root.winfo_rgb(color_perfil)
+    except tk.TclError:
+        messagebox.showerror("Perfil no válido", "El color del perfil no es válido.")
+        return
+    campos_texto = (
+        "afk_tiempo", "afk_key", "afk_accion", "click_tiempo", "click_key",
+        "click_tipo", "lag_key", "lag_duracion", "shuffle_key", "shuffle_delay",
+        "fast_swap_key", "fast_swap_delay", "fast_swap_secondary_key"
+    )
+    campos_booleanos = ("fast_swap_hold", "slot1", "slot2", "slot3", "slot4", "beep")
+    campos_auto_train_booleanos = (
+        "auto_train_slot1", "auto_train_slot2", "auto_train_slot3", "auto_train_slot4",
+        "auto_train_click"
+    )
+    campos_hotkeys_recorder = ("recorder_start_key", "recorder_play_key", "recorder_stop_key")
+
+    if (
+        not isinstance(nombre, str)
+        or not nombre.strip()
+        or not isinstance(config, dict)
+        or any(not isinstance(config.get(campo), str) for campo in campos_texto)
+        or any(not isinstance(config.get(campo), bool) for campo in campos_booleanos)
+        or any(campo in config and not isinstance(config[campo], bool) for campo in campos_auto_train_booleanos)
+        or "auto_train_click_type" in config and not isinstance(config["auto_train_click_type"], str)
+        or "auto_train_delay" in config and not isinstance(config["auto_train_delay"], str)
+        or "auto_train_key" in config and not isinstance(config["auto_train_key"], str)
+        or any(campo in config and not isinstance(config[campo], str) for campo in campos_hotkeys_recorder)
+        or "afk_tiempo_max" in config and not isinstance(config["afk_tiempo_max"], str)
+        or "afk_umbral_actividad" in config and not isinstance(config["afk_umbral_actividad"], str)
+        or "afk_aleatorio" in config and not isinstance(config["afk_aleatorio"], bool)
+        or "afk_pausa_activo" in config and not isinstance(config["afk_pausa_activo"], bool)
+        or "afk_sonido" in config and not isinstance(config["afk_sonido"], bool)
+    ):
+        messagebox.showerror("Perfil no válido", "El archivo no contiene un perfil compatible.")
+        return
+
+    nombre = nombre.strip()
+    atajos = (
+        ("Anti-AFK", config["afk_key"].strip().lower()),
+        ("Autoclicker", config["click_key"].strip().lower()),
+        ("Lag Switch", config["lag_key"].strip().lower()),
+        ("Shuffle Reload", config["shuffle_key"].strip().lower()),
+        ("Fast Gun Swap", config["fast_swap_key"].strip().lower()),
+        ("Auto Train", config.get("auto_train_key", "f5").strip().lower()),
+        ("Recorder - Grabar", config.get("recorder_start_key", "f6").strip().lower()),
+        ("Recorder - Reproducir", config.get("recorder_play_key", "f7").strip().lower()),
+        ("Recorder - Detener", config.get("recorder_stop_key", "f8").strip().lower())
+    )
+    try:
+        conflictos = encontrar_conflictos_hotkeys(atajos)
+    except ValueError as error:
+        messagebox.showerror("Perfil no válido", str(error))
+        return
+    if conflictos:
+        detalle = "\n".join(" y ".join(grupo) for grupo in conflictos)
+        messagebox.showerror("Perfil no válido", f"El perfil repite estos atajos:\n{detalle}")
+        return
+
+    if nombre in perfiles_config and not messagebox.askyesno(
+        "Reemplazar perfil",
+        f"Ya existe un perfil llamado {nombre}. ¿Quieres reemplazarlo?"
+    ):
+        return
+
+    detener_todo()
+    perfiles_config[nombre] = config
+    perfil_colores[nombre] = color_perfil.lower()
+    perfil_activo = nombre
+    combo_perfiles.configure(values=sorted(perfiles_config))
+    combo_perfiles.set(nombre)
+    aplicar_configuracion(config)
+    actualizar_muestra_color_perfil()
+    actualizar_hotkeys()
+
+def cargar_configuracion():
+    global perfil_activo, perfiles_config, roblox_profile_username, app_accent_color
+    global app_theme_name, app_ui_scale, app_opacidad, perfil_colores, orden_secciones, recorder_macros
+    global sonidos_activos, avisos_recorder_activos
+    datos = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                datos = json.load(f)
+        except Exception:
+            pass
+
+    if isinstance(datos, dict) and isinstance(datos.get("profiles"), dict):
+        perfiles_config = {
+            nombre: config for nombre, config in datos["profiles"].items()
+            if isinstance(nombre, str) and isinstance(config, dict)
+        }
+        perfil_activo = datos.get("active_profile", "Predeterminado")
+        if perfil_activo not in perfiles_config:
+            perfil_activo = next(iter(perfiles_config), "Predeterminado")
+    else:
+        perfil_activo = "Predeterminado"
+        perfiles_config = {perfil_activo: datos if isinstance(datos, dict) else {}}
+
+    var_intro_animacion.set(bool(datos.get("intro_animation", True)) if isinstance(datos, dict) else True)
+    roblox_profile_username = (
+        datos.get("roblox_username", "")
+        if isinstance(datos, dict) and isinstance(datos.get("roblox_username", ""), str)
+        else ""
+    )
+    color_guardado = (
+        datos.get("app_accent_color", "#00ffcc")
+        if isinstance(datos, dict) and isinstance(datos.get("app_accent_color", "#00ffcc"), str)
+        else "#00ffcc"
+    )
+    try:
+        root.winfo_rgb(color_guardado)
+        app_accent_color = color_guardado.lower()
+    except tk.TclError:
+        app_accent_color = "#00ffcc"
+    tema_guardado = datos.get("app_theme", "GGSPQE") if isinstance(datos, dict) else "GGSPQE"
+    app_theme_name = tema_guardado if tema_guardado in APP_THEMES else "GGSPQE"
+    factor_guardado = datos.get("app_ui_scale", 1.0) if isinstance(datos, dict) else 1.0
+    app_ui_scale = factor_guardado if factor_guardado in (0.9, 1.0, 1.15) else 1.0
+    opacidad_guardada = datos.get("app_opacidad", 100) if isinstance(datos, dict) else 100
+    app_opacidad = opacidad_guardada if isinstance(opacidad_guardada, int) and 60 <= opacidad_guardada <= 100 else 100
+    colores_guardados = datos.get("profile_colors", {}) if isinstance(datos, dict) else {}
+    perfil_colores = {}
+    if isinstance(colores_guardados, dict):
+        for nombre, color in colores_guardados.items():
+            if isinstance(nombre, str) and isinstance(color, str):
+                try:
+                    root.winfo_rgb(color)
+                    perfil_colores[nombre] = color.lower()
+                except tk.TclError:
+                    pass
+    orden_guardado = datos.get("menu_order", []) if isinstance(datos, dict) else []
+    secciones_validas = ("Roblox", "Juegos", "Texturas", "Recorder", "Registro", "Estadísticas", "Preferencias")
+    orden_secciones = [
+        seccion for seccion in orden_guardado
+        if isinstance(seccion, str) and seccion in secciones_validas
+    ] if isinstance(orden_guardado, list) else []
+    orden_secciones = list(dict.fromkeys(orden_secciones))
+    orden_secciones.extend(seccion for seccion in secciones_validas if seccion not in orden_secciones)
+    macros_guardados = datos.get("recorder_macros", {}) if isinstance(datos, dict) else {}
+    recorder_macros = {}
+    if isinstance(macros_guardados, dict):
+        for nombre, eventos in macros_guardados.items():
+            if isinstance(nombre, str) and nombre.strip():
+                eventos_validados = validar_eventos_recorder(eventos)
+                if eventos_validados:
+                    recorder_macros[nombre] = eventos_validados
+    modos_guardados = datos.get("recorder_macros_modo", {}) if isinstance(datos, dict) else {}
+    recorder_macros_modo.clear()
+    if isinstance(modos_guardados, dict):
+        for nombre, modo in modos_guardados.items():
+            if isinstance(nombre, str) and nombre in recorder_macros:
+                recorder_macros_modo[nombre] = bool(modo)
+    sonidos_activos = bool(datos.get("app_sounds_enabled", True)) if isinstance(datos, dict) else True
+    avisos_recorder_activos = bool(datos.get("recorder_notifications", True)) if isinstance(datos, dict) else True
+    var_sonidos_app.set(sonidos_activos)
+    var_avisos_recorder.set(avisos_recorder_activos)
+    var_bandeja_al_cerrar.set(bool(datos.get("minimizar_a_bandeja", False)) if isinstance(datos, dict) else False)
+    var_notificaciones_activas.set(bool(datos.get("notificaciones_activas", True)) if isinstance(datos, dict) else True)
+    var_esquinas_redondeadas.set(bool(datos.get("esquinas_redondeadas", True)) if isinstance(datos, dict) else True)
+    aplicar_esquinas_redondeadas()
+    var_inicio_automatico.set(esta_en_inicio_automatico())
+    estadisticas_guardadas = datos.get("estadisticas", {}) if isinstance(datos, dict) else {}
+    if isinstance(estadisticas_guardadas, dict):
+        for clave in estadisticas:
+            valor = estadisticas_guardadas.get(clave)
+            if isinstance(valor, int) and not isinstance(valor, bool):
+                estadisticas[clave] = valor
+    entry_roblox_username.delete(0, tk.END)
+    entry_roblox_username.insert(0, roblox_profile_username)
+
+    aplicar_configuracion(perfiles_config[perfil_activo])
+    combo_perfiles.configure(values=sorted(perfiles_config))
+    combo_perfiles.set(perfil_activo)
+    combo_tema_app.set(app_theme_name)
+    combo_escala_app.set({0.9: "Compacta", 1.0: "Normal", 1.15: "Grande"}[app_ui_scale])
+    color_acento_guardado = app_accent_color
+    aplicar_tema_app(app_theme_name)
+    if color_acento_guardado != APP_THEMES[app_theme_name]["accent"]:
+        aplicar_color_app(color_acento_guardado)
+    aplicar_escala_app(app_ui_scale)
+    escala_opacidad.set(app_opacidad)
+    aplicar_opacidad(app_opacidad)
+    actualizar_muestra_color_perfil()
+    actualizar_lista_orden_menu()
+    actualizar_lista_macros()
+    aplicar_orden_menu()
+    if not avisos_recorder_activos:
+        lbl_recorder_estado.pack_forget()
+
+def exportar_configuracion_completa():
+    guardar_configuracion()
+    ruta = filedialog.asksaveasfilename(
+        title="Exportar toda la configuración",
+        defaultextension=".json",
+        initialfile="ggspqe_backup.json",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+    try:
+        shutil.copy2(CONFIG_FILE, ruta)
+        registrar_log("Config", "Copia de seguridad exportada")
+        mostrar_banner("Toda la configuración se exportó correctamente.", "exito")
+    except OSError as error:
+        messagebox.showerror("Error al exportar", str(error))
+
+def importar_configuracion_completa():
+    ruta = filedialog.askopenfilename(
+        title="Importar toda la configuración",
+        filetypes=[("Archivo JSON", "*.json")]
+    )
+    if not ruta:
+        return
+    try:
+        with open(ruta, "r", encoding="utf-8") as archivo:
+            datos = json.load(archivo)
+    except (OSError, json.JSONDecodeError) as error:
+        messagebox.showerror("Error al importar", f"No se pudo leer el archivo:\n{error}")
+        return
+    if not isinstance(datos, dict) or not isinstance(datos.get("profiles"), dict):
+        messagebox.showerror("Archivo no válido", "Este archivo no parece una copia de seguridad de GGSPQE.")
+        return
+    if not messagebox.askyesno(
+        "Importar configuración",
+        "Esto reemplazará TODOS tus perfiles, macros y preferencias actuales. ¿Continuar?"
+    ):
+        return
+
+    detener_todo()
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as archivo:
+            json.dump(datos, archivo, indent=4)
+    except OSError as error:
+        messagebox.showerror("Error al importar", str(error))
+        return
+
+    cargar_configuracion()
+    actualizar_hotkeys()
+    resaltar_navegacion("Roblox")
+    registrar_log("Config", "Copia de seguridad importada")
+    mostrar_banner("Configuración importada correctamente.", "exito")
+
+def guardado_automatico_periodico():
+    guardar_configuracion()
+    root.after(120000, guardado_automatico_periodico)  # cada 2 minutos
+
+# --- NOTIFICACIONES DE WINDOWS (opcional: win10toast) ---
+
+def enviar_notificacion(titulo, mensaje):
+    if _toaster is None or not var_notificaciones_activas.get():
+        return
+    def worker():
+        try:
+            _toaster.show_toast(titulo, mensaje, duration=4, threaded=True)
+        except Exception:
+            pass
+    threading.Thread(target=worker, daemon=True).start()
+
+# --- INICIO AUTOMÁTICO CON WINDOWS ---
+
+NOMBRE_REGISTRO_INICIO = "GGSPQE"
+CLAVE_REGISTRO_INICIO = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+def esta_en_inicio_automatico():
+    if winreg is None:
+        return False
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, CLAVE_REGISTRO_INICIO, 0, winreg.KEY_READ) as clave:
+            winreg.QueryValueEx(clave, NOMBRE_REGISTRO_INICIO)
+            return True
+    except OSError:
+        return False
+
+def establecer_inicio_automatico(activar):
+    if winreg is None:
+        return False
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, CLAVE_REGISTRO_INICIO, 0, winreg.KEY_SET_VALUE) as clave:
+            if activar:
+                if getattr(sys, "frozen", False):
+                    comando = f'"{sys.executable}"'
+                else:
+                    comando = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+                winreg.SetValueEx(clave, NOMBRE_REGISTRO_INICIO, 0, winreg.REG_SZ, comando)
+            else:
+                try:
+                    winreg.DeleteValue(clave, NOMBRE_REGISTRO_INICIO)
+                except FileNotFoundError:
+                    pass
+        return True
+    except OSError as error:
+        messagebox.showerror("Inicio automático", f"No se pudo modificar el inicio automático:\n{error}")
+        return False
+
+def alternar_inicio_automatico():
+    if winreg is None:
+        return
+    exito = establecer_inicio_automatico(var_inicio_automatico.get())
+    if exito:
+        registrar_log("Sistema", "Inicio automático " + ("activado" if var_inicio_automatico.get() else "desactivado"))
+    else:
+        var_inicio_automatico.set(not var_inicio_automatico.get())
+
+
+
+icono_bandeja = None
+
+def crear_imagen_bandeja():
+    tam = 64
+    imagen = Image.new("RGB", (tam, tam), app_accent_color)
+    dibujo = ImageDraw.Draw(imagen)
+    dibujo.rectangle([3, 3, tam - 4, tam - 4], outline="#121212", width=4)
+    try:
+        fuente = ImageFont.truetype("arial.ttf", 30)
+    except Exception:
+        fuente = ImageFont.load_default()
+    try:
+        dibujo.text((tam / 2, tam / 2), "G", fill="#121212", anchor="mm", font=fuente)
+    except TypeError:
+        dibujo.text((tam / 2 - 8, tam / 2 - 12), "G", fill="#121212", font=fuente)
+    return imagen
+
+def _restaurar_ventana_bandeja():
+    root.deiconify()
+    root.lift()
+    root.focus_force()
+
+def restaurar_desde_bandeja(icon=None, item=None):
+    root.after(0, _restaurar_ventana_bandeja)
+
+def salir_desde_bandeja(icon=None, item=None):
+    global icono_bandeja
+    if icono_bandeja is not None:
+        try:
+            icono_bandeja.stop()
+        except Exception:
+            pass
+        icono_bandeja = None
+    root.after(0, al_cerrar_app)
+
+def minimizar_a_bandeja():
+    global icono_bandeja
+    if pystray is None:
+        return
+    root.withdraw()
+    if icono_bandeja is None:
+        menu = pystray.Menu(
+            pystray.MenuItem("Mostrar GGSPQE", restaurar_desde_bandeja, default=True),
+            pystray.MenuItem("Detener todo", lambda icon, item: root.after(0, detener_todo)),
+            pystray.MenuItem("Salir", salir_desde_bandeja)
+        )
+        icono_bandeja = pystray.Icon("ggspqe", crear_imagen_bandeja(), "GGSPQE - Roblox Utility Pro", menu)
+        threading.Thread(target=icono_bandeja.run, daemon=True).start()
+    registrar_log("Sistema", "Minimizado a la bandeja")
+
+def detener_bandeja():
+    global icono_bandeja
+    if icono_bandeja is not None:
+        try:
+            icono_bandeja.stop()
+        except Exception:
+            pass
+        icono_bandeja = None
+
+def manejar_cierre_ventana():
+    if pystray is not None and var_bandeja_al_cerrar.get():
+        minimizar_a_bandeja()
+    else:
+        al_cerrar_app()
+
+# --- OVERLAY FLOTANTE ---
+
+ventana_overlay = None
+_overlay_drag = {"x": 0, "y": 0}
+
+def iniciar_arrastre_overlay(event):
+    _overlay_drag["x"] = event.x
+    _overlay_drag["y"] = event.y
+
+def mover_overlay(event):
+    if ventana_overlay is None:
+        return
+    x = ventana_overlay.winfo_x() + event.x - _overlay_drag["x"]
+    y = ventana_overlay.winfo_y() + event.y - _overlay_drag["y"]
+    ventana_overlay.geometry(f"+{x}+{y}")
+
+def actualizar_overlay():
+    if ventana_overlay is None or not ventana_overlay.winfo_exists():
+        return
+    estados = (
+        ("AFK", anti_afk_activo),
+        ("Click", autoclicker_activo),
+        ("Lag", lag_switch_activo),
+        ("Swap", fast_gun_swap_activo),
+        ("Train", auto_train_activo),
+    )
+    texto = "   ".join(f"{nombre}: {'ON' if activo else 'off'}" for nombre, activo in estados)
+    lbl_overlay_estado.config(text=texto)
+    root.after(500, actualizar_overlay)
+
+def cerrar_overlay():
+    global ventana_overlay
+    if ventana_overlay is not None:
+        try:
+            ventana_overlay.destroy()
+        except tk.TclError:
+            pass
+    ventana_overlay = None
+    if "btn_overlay" in globals():
+        btn_overlay.config(text="Mostrar overlay flotante")
+
+def crear_overlay():
+    global ventana_overlay, lbl_overlay_estado
+    if ventana_overlay is not None and ventana_overlay.winfo_exists():
+        return
+    ventana_overlay = tk.Toplevel(root)
+    ventana_overlay.overrideredirect(True)
+    ventana_overlay.attributes("-topmost", True)
+    try:
+        ventana_overlay.attributes("-alpha", 0.90)
+    except tk.TclError:
+        pass
+    ventana_overlay.geometry("+40+40")
+
+    marco = tk.Frame(ventana_overlay, bg="#121212", highlightbackground=app_accent_color, highlightthickness=1)
+    marco.pack(fill=tk.BOTH, expand=True)
+
+    barra_overlay = tk.Frame(marco, bg="#1e1e1e", cursor="fleur")
+    barra_overlay.pack(fill=tk.X)
+    tk.Label(barra_overlay, text="GGSPQE", bg="#1e1e1e", fg=app_accent_color, font=("Segoe UI", 8, "bold"), cursor="fleur").pack(side=tk.LEFT, padx=6, pady=2)
+    tk.Button(barra_overlay, text="✕", bg="#1e1e1e", fg="white", bd=0, font=("Segoe UI", 8), command=cerrar_overlay).pack(side=tk.RIGHT, padx=2)
+
+    lbl_overlay_estado = tk.Label(marco, text="", justify=tk.LEFT, anchor="w", bg="#121212", fg="#aaaaaa", font=("Consolas", 8))
+    lbl_overlay_estado.pack(fill=tk.X, padx=6, pady=4)
+
+    for widget in (barra_overlay,):
+        widget.bind("<ButtonPress-1>", iniciar_arrastre_overlay)
+        widget.bind("<B1-Motion>", mover_overlay)
+
+    if "btn_overlay" in globals():
+        btn_overlay.config(text="Ocultar overlay flotante")
+    actualizar_overlay()
+
+def alternar_overlay():
+    if ventana_overlay is not None and ventana_overlay.winfo_exists():
+        cerrar_overlay()
+    else:
+        crear_overlay()
+
+def al_cerrar_app():
+    global anti_afk_activo, autoclicker_activo, lag_switch_activo
+    global fast_gun_swap_activo, fast_gun_swap_stop
+    detener_bandeja()
+    cerrar_overlay()
+    anti_afk_activo = False
+    autoclicker_activo = False
+    lag_switch_activo = False
+    fast_gun_swap_activo = False
+    if fast_gun_swap_stop:
+        fast_gun_swap_stop.set()
+    if auto_train_stop:
+        auto_train_stop.set()
+    lag_switch_stop.set()
+    if shuffle_stop:
+        shuffle_stop.set()
+    detener_recorder()
+    cancelar_captura_hotkey()
+    
+    aplicar_regla_firewall(activar=False)
+    guardar_configuracion()
+    try:
+        keyboard.unhook_all()
+    except Exception:
+        pass
+    root.destroy()
+
+# --- NAVEGACIÓN Y MENÚ DESPLEGABLE ---
+
+def toggle_menu_juegos():
+    global menu_juegos_desplegado
+    if menu_juegos_desplegado:
+        frame_sub_juegos.pack_forget()
+        btn_juegos.config(text="▶ Juegos")
+        menu_juegos_desplegado = False
+    else:
+        frame_sub_juegos.pack(after=fila_juegos, fill=tk.X, padx=10, pady=2)
+        btn_juegos.config(text="▼ Juegos")
+        menu_juegos_desplegado = True
+
+def resaltar_navegacion(seccion):
+    """Resalta visualmente el botón del menú lateral correspondiente a la sección activa."""
+    if "botones_navegacion" not in globals():
+        return
+    paleta = app_theme_palette or APP_THEMES.get(app_theme_name, APP_THEMES["GGSPQE"])
+    color_activo = paleta.get("button", "#1f4037")
+    for nombre, boton in botones_navegacion.items():
+        if boton is None:
+            continue
+        color_normal = "#222222" if boton in (btn_prison_life, btn_larping_legends) else "#2d2d2d"
+        try:
+            boton.config(bg=color_activo if nombre == seccion else color_normal)
+        except tk.TclError:
+            pass
+
+def mostrar_seccion(seccion):
+    frame_roblox.pack_forget()
+    frame_texturas.pack_forget()
+    frame_prison_life.pack_forget()
+    frame_larping_legends.pack_forget()
+    frame_recorder.pack_forget()
+    frame_registro.pack_forget()
+    frame_estadisticas.pack_forget()
+    frame_acerca.pack_forget()
+
+    if seccion == "Roblox":
+        frame_roblox.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="🎮 Sección actual: Roblox (Utilidades Pro)")
+    elif seccion == "Prison Life":
+        frame_prison_life.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="🔫 Sección actual: Prison Life (Shuffle Reload)")
+    elif seccion == "Larping Legends":
+        frame_larping_legends.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="🏋 Sección actual: Larping Legends")
+    elif seccion == "Texturas":
+        frame_texturas.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="🖼 Sección actual: Gestor de Texturas (FPS Boost)")
+    elif seccion == "Recorder":
+        frame_recorder.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="⏺ Recorder de teclado y mouse")
+    elif seccion == "Registro":
+        frame_registro.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="🗒 Registro de actividad")
+        actualizar_lista_log_global()
+    elif seccion == "Estadísticas":
+        frame_estadisticas.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="📊 Estadísticas")
+    elif seccion == "Acerca de":
+        frame_acerca.pack(expand=True, fill=tk.BOTH)
+        label_titulo_contenido.config(text="⚙ Preferencias")
+    else:
+        label_titulo_contenido.config(text=f"Sección actual: {seccion}")
+    resaltar_navegacion(seccion)
+
+def actualizar_panel_estado():
+    estados = (
+        ("Anti-AFK", anti_afk_activo, entry_key_afk),
+        ("Autoclicker", autoclicker_activo, entry_key_click),
+        ("Lag Switch", lag_switch_activo, entry_key_lag),
+        ("Shuffle Reload", ejecutando_shuffle, entry_key_shuffle),
+        ("Fast Gun Swap", fast_gun_swap_activo, entry_fast_swap_key)
+    )
+    linea1 = "  |  ".join(
+        f"{nombre}: {'ACTIVA' if activo else 'DETENIDA'} [{entrada.get().strip().upper()}]"
+        for nombre, activo, entrada in estados[:3]
+    )
+    linea2 = "  |  ".join(
+        f"{nombre}: {'ACTIVA' if activo else 'DETENIDA'} [{entrada.get().strip().upper()}]"
+        for nombre, activo, entrada in estados[3:]
+    )
+    label_estado_funciones.config(text=f"{linea1}\n{linea2}")
+    root.after(250, actualizar_panel_estado)
+
+INDICE_BUSQUEDA = (
+    (("afk", "inactiv"), "Roblox"),
+    (("autoclick", "clic", "click"), "Roblox"),
+    (("lag",), "Roblox"),
+    (("textura", "fps", "agua", "cielo"), "Texturas"),
+    (("recorder", "macro", "grabar", "grabación"), "Recorder"),
+    (("shuffle", "prison", "reload", "fast", "swap", "arma"), "Prison Life"),
+    (("larping", "train", "legends", "entrenar"), "Larping Legends"),
+    (("tema", "color", "perfil", "apariencia", "sonido", "copia", "backup", "orden"), "Acerca de"),
+    (("registro", "log", "historial", "diario"), "Registro"),
+)
+
+def ejecutar_busqueda(event=None):
+    consulta = entry_buscar.get().strip().lower()
+    if not consulta:
+        return
+    destino = None
+    for palabras, seccion in INDICE_BUSQUEDA:
+        if any(palabra in consulta or consulta in palabra for palabra in palabras):
+            destino = seccion
+            break
+    if destino is None:
+        messagebox.showinfo("Buscar", f"No se encontraron resultados para «{consulta}».")
+        return
+    if destino in ("Prison Life", "Larping Legends") and not menu_juegos_desplegado:
+        toggle_menu_juegos()
+    mostrar_seccion(destino)
+    entry_buscar.delete(0, tk.END)
+
+# --- EFECTOS VISUALES MODERNOS (hover, foco, cursores) ---
+
+def _mezclar_rgb(base, mezcla, cantidad):
+    return tuple(min(255, max(0, round(b + (m - b) * cantidad))) for b, m in zip(base, mezcla))
+
+def aplicar_efecto_hover(boton):
+    """Aclara el fondo del botón al pasar el mouse por encima (efecto hover moderno)."""
+    def al_entrar(event):
+        try:
+            r, g, b = boton.winfo_rgb(boton.cget("bg"))
+            base = (r // 256, g // 256, b // 256)
+            claro = _mezclar_rgb(base, (255, 255, 255), 0.18)
+            boton._color_original_hover = boton.cget("bg")
+            boton.config(bg="#%02x%02x%02x" % claro)
+        except tk.TclError:
+            pass
+
+    def al_salir(event):
+        color_previo = getattr(boton, "_color_original_hover", None)
+        if color_previo:
+            try:
+                boton.config(bg=color_previo)
+            except tk.TclError:
+                pass
+
+    boton.config(cursor="hand2")
+    boton.bind("<Enter>", al_entrar, add="+")
+    boton.bind("<Leave>", al_salir, add="+")
+
+def modernizar_widgets(widget):
+    """Recorre todo el árbol de widgets aplicando hover, foco y cursores modernos."""
+    for hijo in widget.winfo_children():
+        try:
+            if isinstance(hijo, tk.Button):
+                aplicar_efecto_hover(hijo)
+            elif isinstance(hijo, tk.Entry):
+                hijo.config(highlightthickness=1, highlightbackground="#333333", highlightcolor="#00ffcc")
+
+                def _foco_dentro(event, w=hijo):
+                    try:
+                        w.config(highlightbackground=app_accent_color)
+                    except tk.TclError:
+                        pass
+
+                def _foco_fuera(event, w=hijo):
+                    try:
+                        w.config(highlightbackground="#333333")
+                    except tk.TclError:
+                        pass
+
+                hijo.bind("<FocusIn>", _foco_dentro, add="+")
+                hijo.bind("<FocusOut>", _foco_fuera, add="+")
+            elif isinstance(hijo, tk.Checkbutton):
+                hijo.config(cursor="hand2")
+        except tk.TclError:
+            pass
+        modernizar_widgets(hijo)
+
+def crear_seccion_acordeon(parent, fila, titulo, expandido=True):
+    """Crea una sección con cabecera clicable que expande/colapsa su contenido."""
+    contenedor = tk.Frame(parent, bg="#121212")
+    contenedor.grid(row=fila, column=0, columnspan=3, pady=(0, 6), sticky="ew")
+
+    estado = {"expandido": expandido}
+    cabecera = tk.Frame(contenedor, bg="#181818", cursor="hand2")
+    cabecera.pack(fill=tk.X)
+    lbl_flecha = tk.Label(cabecera, text="▼" if expandido else "▶", bg="#181818", fg="#00ffcc", font=("Segoe UI", 9, "bold"))
+    lbl_flecha.pack(side=tk.LEFT, padx=(8, 4), pady=4)
+    tk.Label(cabecera, text=titulo, bg="#181818", fg="#00ffcc", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, pady=4)
+
+    cuerpo = tk.Frame(contenedor, bg="#121212")
+    if expandido:
+        cuerpo.pack(fill=tk.X, pady=(6, 0))
+
+    def alternar(event=None):
+        if estado["expandido"]:
+            cuerpo.pack_forget()
+            lbl_flecha.config(text="▶")
+        else:
+            cuerpo.pack(fill=tk.X, pady=(6, 0))
+            lbl_flecha.config(text="▼")
+        estado["expandido"] = not estado["expandido"]
+
+    cabecera.bind("<Button-1>", alternar)
+    for hijo in cabecera.winfo_children():
+        hijo.bind("<Button-1>", alternar)
+
+    return cuerpo
+
+def agregar_tooltip(widget, texto):
+    """Muestra un pequeño globo de ayuda al pasar el mouse sobre un control."""
+    estado = {"ventana": None, "id_espera": None}
+
+    def mostrar():
+        estado["id_espera"] = None
+        if estado["ventana"] is not None or not widget.winfo_exists():
+            return
+        x = widget.winfo_rootx() + 10
+        y = widget.winfo_rooty() + widget.winfo_height() + 4
+        ventana = tk.Toplevel(widget)
+        ventana.overrideredirect(True)
+        try:
+            ventana.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+        ventana.geometry(f"+{x}+{y}")
+        tk.Label(
+            ventana, text=texto, bg="#222222", fg="white", font=("Segoe UI", 8),
+            bd=1, relief="solid", padx=6, pady=3, wraplength=220, justify=tk.LEFT
+        ).pack()
+        estado["ventana"] = ventana
+
+    def al_entrar(event=None):
+        estado["id_espera"] = widget.after(450, mostrar)
+
+    def ocultar(event=None):
+        if estado["id_espera"] is not None:
+            try:
+                widget.after_cancel(estado["id_espera"])
+            except tk.TclError:
+                pass
+            estado["id_espera"] = None
+        if estado["ventana"] is not None:
+            try:
+                estado["ventana"].destroy()
+            except tk.TclError:
+                pass
+            estado["ventana"] = None
+
+    widget.bind("<Enter>", al_entrar, add="+")
+    widget.bind("<Leave>", ocultar, add="+")
+    widget.bind("<ButtonPress>", ocultar, add="+")
+
+leds_menu_lateral = {}
+
+def crear_fila_menu_con_led(parent, texto, comando, ancho=16, clave_led=None, **kwargs_boton):
+    """Crea una fila del menú lateral con un punto de estado (LED) opcional a la izquierda."""
+    fila = tk.Frame(parent, bg=parent.cget("bg"))
+    led = None
+    if clave_led is not None:
+        led = tk.Canvas(fila, width=10, height=10, bg=parent.cget("bg"), highlightthickness=0)
+        led.create_oval(1, 1, 9, 9, fill="#555555", outline="", tags="punto")
+        led.pack(side=tk.LEFT, padx=(0, 4))
+        leds_menu_lateral[clave_led] = led
+    boton = tk.Button(fila, text=texto, width=ancho, anchor="w", bd=0, command=comando, **kwargs_boton)
+    boton.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    return fila, boton
+
+def actualizar_leds_menu():
+    estado_recorder_activo = recorder_mode != "idle" or (
+        recorder_playback_stop is not None and not recorder_playback_stop.is_set()
+    )
+    estados = {
+        "Roblox": anti_afk_activo or autoclicker_activo or lag_switch_activo,
+        "Juegos": ejecutando_shuffle or fast_gun_swap_activo or auto_train_activo,
+        "Prison Life": ejecutando_shuffle or fast_gun_swap_activo,
+        "Larping Legends": auto_train_activo,
+        "Recorder": estado_recorder_activo,
+    }
+    for clave, activo in estados.items():
+        led = leds_menu_lateral.get(clave)
+        if led is not None:
+            led.itemconfig("punto", fill="#00ff88" if activo else "#555555")
+    root.after(500, actualizar_leds_menu)
+
+# --- INTERFAZ GRÁFICA PRINCIPAL ---
+
+try:
+    root = TkinterDnD.Tk() if TkinterDnD is not None else tk.Tk()
+except RuntimeError:
+    # La librería nativa tkdnd no se pudo cargar (p. ej. versión de Python no soportada):
+    # arrancamos sin arrastrar y soltar; los botones de selección siguen funcionando.
+    DND_FILES = None
+    TkinterDnD = None
+    root = tk.Tk()
+root.title("GGSPQE - Roblox Utility Pro")
+
+ancho_ventana = 640
+alto_ventana = 760
+
+ancho_pantalla = root.winfo_screenwidth()
+alto_pantalla = root.winfo_screenheight()
+
+pos_x = (ancho_pantalla // 2) - (ancho_ventana // 2)
+pos_y = (alto_pantalla // 2) - (alto_ventana // 2)
+
+root.geometry(f"{ancho_ventana}x{alto_ventana}+{pos_x}+{pos_y}")
+root.minsize(ancho_ventana, 680)
+escala_tk_base = float(root.tk.call("tk", "scaling"))
+root.resizable(True, True)
+root.config(bg="#121212")
+root.protocol("WM_DELETE_WINDOW", manejar_cierre_ventana)
+
+# Variables booleanas Tkinter
+var_slot1 = tk.BooleanVar(value=True)
+var_slot2 = tk.BooleanVar(value=True)
+var_slot3 = tk.BooleanVar(value=True)
+var_slot4 = tk.BooleanVar(value=False)
+var_beep = tk.BooleanVar(value=True)
+var_fast_swap_hold = tk.BooleanVar(value=False)
+var_intro_animacion = tk.BooleanVar(value=True)
+var_sonidos_app = tk.BooleanVar(value=True)
+var_avisos_recorder = tk.BooleanVar(value=True)
+var_auto_train_slot1 = tk.BooleanVar(value=True)
+var_auto_train_slot2 = tk.BooleanVar(value=True)
+var_auto_train_slot3 = tk.BooleanVar(value=True)
+var_auto_train_slot4 = tk.BooleanVar(value=True)
+var_auto_train_click = tk.BooleanVar(value=True)
+var_recorder_relativo = tk.BooleanVar(value=False)
+var_afk_aleatorio = tk.BooleanVar(value=False)
+var_afk_pausa_activo = tk.BooleanVar(value=False)
+var_afk_sonido = tk.BooleanVar(value=False)
+var_bandeja_al_cerrar = tk.BooleanVar(value=False)
+var_notificaciones_activas = tk.BooleanVar(value=True)
+var_inicio_automatico = tk.BooleanVar(value=False)
+var_esquinas_redondeadas = tk.BooleanVar(value=True)
+
+# Panel Superior
+frame_superior = tk.Frame(root, height=50, bg="#1e1e1e")
+frame_superior.pack(side=tk.TOP, fill=tk.X)
+
+frame_superior_borde = tk.Frame(root, height=2, bg=app_accent_color)
+frame_superior_borde.pack(side=tk.TOP, fill=tk.X)
+
+frame_perfil_roblox = tk.Frame(frame_superior, bg="#1e1e1e")
+frame_perfil_roblox.pack(side=tk.LEFT, padx=(10, 0), pady=1)
+lbl_foto_perfil = tk.Label(
+    frame_perfil_roblox,
+    text="R",
+    width=3,
+    height=2,
+    bg="#2d2d2d",
+    fg="#00ffcc",
+    font=("Segoe UI", 12, "bold")
+)
+lbl_foto_perfil.pack(side=tk.LEFT, padx=(0, 7))
+lbl_saludo_perfil = tk.Label(
+    frame_perfil_roblox,
+    text="Vincula tu perfil de Roblox",
+    bg="#1e1e1e",
+    fg="white",
+    font=("Segoe UI", 9, "bold")
+)
+lbl_saludo_perfil.pack(side=tk.LEFT)
+
+entry_buscar = tk.Entry(frame_superior, width=22, bg="#2d2d2d", fg="white", insertbackground="white", bd=0)
+entry_buscar.pack(side=tk.RIGHT, padx=15, pady=12)
+
+btn_buscar = tk.Button(frame_superior, text="Buscar", bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=ejecutar_busqueda)
+btn_buscar.pack(side=tk.RIGHT, padx=5, pady=10)
+entry_buscar.bind("<Return>", ejecutar_busqueda)
+
+label_buscador_txt = tk.Label(frame_superior, text="GGSPQE", bg="#1e1e1e", fg="white", font=("Segoe UI", 10, "bold"))
+label_buscador_txt.pack(side=tk.LEFT, padx=15, pady=12)
+
+if not es_administrador():
+    lbl_admin = tk.Label(frame_superior, text="⚠️ Ejecuta como Admin para Lag Switch", bg="#1e1e1e", fg="#ffcc00", font=("Segoe UI", 8, "bold"))
+    lbl_admin.pack(side=tk.LEFT, padx=10)
+
+# Panel Izquierdo
+frame_izquierdo = tk.Frame(root, width=160, bg="#181818")
+frame_izquierdo.pack(side=tk.LEFT, fill=tk.Y)
+frame_izquierdo.pack_propagate(False)
+
+fila_roblox, btn_roblox = crear_fila_menu_con_led(
+    frame_izquierdo, "🎮  Roblox General", lambda: mostrar_seccion("Roblox"),
+    clave_led="Roblox", bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white"
+)
+fila_roblox.pack(pady=10, padx=10, fill=tk.X)
+
+fila_juegos, btn_juegos = crear_fila_menu_con_led(
+    frame_izquierdo, "▶ Juegos", toggle_menu_juegos,
+    clave_led="Juegos", bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white"
+)
+fila_juegos.pack(pady=5, padx=10, fill=tk.X)
+
+frame_sub_juegos = tk.Frame(frame_izquierdo, bg="#181818")
+fila_prison_life, btn_prison_life = crear_fila_menu_con_led(
+    frame_sub_juegos, "🔫  Prison Life", lambda: mostrar_seccion("Prison Life"), ancho=14,
+    clave_led="Prison Life", bg="#222222", fg="#00ffcc", activebackground="#333333", activeforeground="white"
+)
+fila_prison_life.pack(pady=2, padx=15, fill=tk.X)
+fila_larping_legends, btn_larping_legends = crear_fila_menu_con_led(
+    frame_sub_juegos, "🏋  Larping Legends", lambda: mostrar_seccion("Larping Legends"), ancho=14,
+    clave_led="Larping Legends", bg="#222222", fg="#00ffcc", activebackground="#333333", activeforeground="white"
+)
+fila_larping_legends.pack(pady=2, padx=15, fill=tk.X)
+
+btn_texturas = tk.Button(frame_izquierdo, text="🖼  Texturas (FPS)", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, anchor="w", command=lambda: mostrar_seccion("Texturas"))
+btn_texturas.pack(pady=5, padx=10)
+
+fila_recorder, btn_recorder = crear_fila_menu_con_led(
+    frame_izquierdo, "⏺  Recorder", lambda: mostrar_seccion("Recorder"),
+    clave_led="Recorder", bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white"
+)
+fila_recorder.pack(pady=5, padx=10, fill=tk.X)
+
+btn_registro = tk.Button(frame_izquierdo, text="🗒  Registro", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, anchor="w", command=lambda: mostrar_seccion("Registro"))
+btn_registro.pack(pady=5, padx=10)
+
+btn_estadisticas = tk.Button(frame_izquierdo, text="📊  Estadísticas", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, anchor="w", command=lambda: mostrar_seccion("Estadísticas"))
+btn_estadisticas.pack(pady=5, padx=10)
+
+btn_opcion3 = tk.Button(frame_izquierdo, text="⚙  Preferencias", width=16, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, anchor="w", command=lambda: mostrar_seccion("Acerca de"))
+btn_opcion3.pack(pady=5, padx=10)
+
+btn_detener_todo = tk.Button(frame_izquierdo, text="⛔  Detener todo", width=16, bg="#552222", fg="white", activebackground="#773333", activeforeground="white", bd=0, anchor="w", command=detener_todo)
+btn_detener_todo.pack(pady=(20, 5), padx=10)
+
+botones_navegacion = {
+    "Roblox": btn_roblox,
+    "Prison Life": btn_prison_life,
+    "Larping Legends": btn_larping_legends,
+    "Texturas": btn_texturas,
+    "Recorder": btn_recorder,
+    "Registro": btn_registro,
+    "Estadísticas": btn_estadisticas,
+    "Acerca de": btn_opcion3
+}
+
+# ÁREA PRINCIPAL
+frame_principal = tk.Frame(root, bg="#121212")
+frame_principal.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+
+lbl_banner = tk.Label(frame_principal, text="", font=("Segoe UI", 9, "bold"), bg="#1f4037", fg="#00ffcc", pady=4)
+_banner_after_id = None
+
+def ocultar_banner():
+    global _banner_after_id
+    lbl_banner.pack_forget()
+    _banner_after_id = None
+
+def mostrar_banner(texto, tipo="info"):
+    global _banner_after_id
+    colores = {
+        "info": ("#1f4037", "#00ffcc"),
+        "exito": ("#1f4037", "#00ffcc"),
+        "advertencia": ("#4a3a12", "#ffcc00"),
+        "error": ("#552222", "#ff8080"),
+    }
+    bg, fg = colores.get(tipo, colores["info"])
+    if _banner_after_id is not None:
+        try:
+            root.after_cancel(_banner_after_id)
+        except tk.TclError:
+            pass
+    lbl_banner.config(text=texto, bg=bg, fg=fg)
+    lbl_banner.pack(fill=tk.X, before=label_titulo_contenido)
+    _banner_after_id = root.after(3500, ocultar_banner)
+
+label_titulo_contenido = tk.Label(frame_principal, text="🎮 Sección actual: Roblox (Utilidades Pro)", font=("Segoe UI", 11, "bold"), bg="#121212", fg="white")
+label_titulo_contenido.pack(pady=(12, 0))
+
+label_estado_funciones = tk.Label(
+    frame_principal,
+    text="",
+    justify=tk.LEFT,
+    anchor="w",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Consolas", 8)
+)
+label_estado_funciones.pack(fill=tk.X, padx=12, pady=(3, 0))
+
+tk.Frame(frame_principal, height=1, bg="#2d2d2d").pack(fill=tk.X, padx=12, pady=(6, 0))
+
+# --- PANEL ROBLOX GENERAL ---
+frame_roblox = tk.Frame(frame_principal, bg="#121212")
+frame_roblox.pack(expand=True, fill=tk.BOTH)
+
+contenedor_central = tk.Frame(frame_roblox, bg="#121212")
+contenedor_central.place(relx=0.5, rely=0.5, anchor="center")
+
+# Anti-AFK
+frame_afk_seccion = crear_seccion_acordeon(contenedor_central, 0, "Configuración Anti-AFK")
+
+entry_afk_tiempo = tk.Entry(frame_afk_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_afk_tiempo.insert(0, "60")
+tk.Label(frame_afk_seccion, text="Intervalo mín. (s):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=1, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_afk_tiempo.grid(row=1, column=1, pady=2, sticky="w")
+
+entry_afk_tiempo_max = tk.Entry(frame_afk_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_afk_tiempo_max.insert(0, "90")
+tk.Label(frame_afk_seccion, text="Intervalo máx. (s):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=2, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_afk_tiempo_max.grid(row=2, column=1, pady=2, sticky="w")
+tk.Checkbutton(
+    frame_afk_seccion, text="Intervalo aleatorio", variable=var_afk_aleatorio,
+    bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white"
+).grid(row=2, column=2, padx=(6, 0), pady=2, sticky="w")
+
+entry_key_afk = tk.Entry(frame_afk_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_afk.insert(0, "f1")
+tk.Label(frame_afk_seccion, text="Tecla rápida (ej: f1):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=3, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_key_afk.grid(row=3, column=1, pady=2, sticky="w")
+btn_captura_afk = tk.Button(frame_afk_seccion, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_afk.config(command=lambda: iniciar_captura_hotkey(entry_key_afk, btn_captura_afk))
+btn_captura_afk.grid(row=3, column=2, padx=(5, 0), pady=2)
+
+combo_accion_afk = ttk.Combobox(frame_afk_seccion, values=["Saltar (Espacio)", "Caminar (W)", "Mover Cámara", "Aleatorio (variar)"], width=14, state="readonly")
+combo_accion_afk.set("Saltar (Espacio)")
+tk.Label(frame_afk_seccion, text="Acción:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=4, column=0, padx=(0, 8), pady=2, sticky="e")
+combo_accion_afk.grid(row=4, column=1, pady=2, sticky="w")
+
+entry_afk_umbral_actividad = tk.Entry(frame_afk_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_afk_umbral_actividad.insert(0, "5")
+tk.Label(frame_afk_seccion, text="Umbral actividad (s):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=5, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_afk_umbral_actividad.grid(row=5, column=1, pady=2, sticky="w")
+tk.Checkbutton(
+    frame_afk_seccion, text="Pausar si ya estoy activo", variable=var_afk_pausa_activo,
+    bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white"
+).grid(row=5, column=2, padx=(6, 0), pady=2, sticky="w")
+
+tk.Checkbutton(
+    frame_afk_seccion, text="Sonido antes de cada acción", variable=var_afk_sonido,
+    bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white"
+).grid(row=6, column=0, columnspan=2, pady=2, sticky="w")
+
+lbl_afk_countdown = tk.Label(frame_afk_seccion, text="Próxima acción: --", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9, "bold"))
+lbl_afk_countdown.grid(row=7, column=0, columnspan=3, pady=(4, 0))
+barra_afk_countdown = ttk.Progressbar(frame_afk_seccion, orient="horizontal", length=220, mode="determinate", maximum=100)
+barra_afk_countdown.grid(row=8, column=0, columnspan=3, pady=(2, 4))
+
+btn_antiafk = tk.Button(frame_afk_seccion, text="Activar Anti-AFK", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_anti_afk)
+btn_antiafk.grid(row=9, column=0, columnspan=3, pady=6)
+
+tk.Label(frame_afk_seccion, text="Historial de acciones", bg="#121212", fg="#00ffcc", font=("Segoe UI", 9, "bold")).grid(row=10, column=0, columnspan=3, pady=(4, 2))
+frame_historial_afk = tk.Frame(frame_afk_seccion, bg="#121212")
+frame_historial_afk.grid(row=11, column=0, columnspan=3, pady=(0, 4))
+lista_historial_afk = tk.Listbox(
+    frame_historial_afk, width=42, height=5, exportselection=False,
+    bg="#2d2d2d", fg="white", selectbackground="#1f4037", font=("Consolas", 8)
+)
+barra_historial_afk = tk.Scrollbar(frame_historial_afk, orient=tk.VERTICAL, command=lista_historial_afk.yview)
+lista_historial_afk.configure(yscrollcommand=barra_historial_afk.set)
+lista_historial_afk.pack(side=tk.LEFT, fill=tk.BOTH)
+barra_historial_afk.pack(side=tk.LEFT, fill=tk.Y)
+
+# Autoclicker
+frame_click_seccion = crear_seccion_acordeon(contenedor_central, 1, "Configuración Autoclicker")
+
+entry_click_tiempo = tk.Entry(frame_click_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_click_tiempo.insert(0, "100")
+tk.Label(frame_click_seccion, text="Intervalo (ms):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=0, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_click_tiempo.grid(row=0, column=1, pady=2, sticky="w")
+
+entry_key_click = tk.Entry(frame_click_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_click.insert(0, "f2")
+tk.Label(frame_click_seccion, text="Tecla rápida (ej: f2):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=1, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_key_click.grid(row=1, column=1, pady=2, sticky="w")
+btn_captura_click = tk.Button(frame_click_seccion, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_click.config(command=lambda: iniciar_captura_hotkey(entry_key_click, btn_captura_click))
+btn_captura_click.grid(row=1, column=2, padx=(5, 0), pady=2)
+
+combo_tipo_clic = ttk.Combobox(frame_click_seccion, values=["Clic Izquierdo", "Clic Derecho"], width=14, state="readonly")
+combo_tipo_clic.set("Clic Izquierdo")
+tk.Label(frame_click_seccion, text="Botón del mouse:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=2, column=0, padx=(0, 8), pady=2, sticky="e")
+combo_tipo_clic.grid(row=2, column=1, pady=2, sticky="w")
+
+btn_autoclicker = tk.Button(frame_click_seccion, text="Activar Autoclicker", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_autoclicker)
+btn_autoclicker.grid(row=3, column=0, columnspan=2, pady=6)
+
+# Lag Switcher
+frame_lag_seccion = crear_seccion_acordeon(contenedor_central, 2, "Configuración Lag Switcher")
+
+entry_lag_duracion = tk.Entry(frame_lag_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_lag_duracion.insert(0, "3000")
+tk.Label(frame_lag_seccion, text="Duración (ms) [0=Hold]:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=0, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_lag_duracion.grid(row=0, column=1, pady=2, sticky="w")
+
+entry_key_lag = tk.Entry(frame_lag_seccion, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_lag.insert(0, "f3")
+tk.Label(frame_lag_seccion, text="Tecla rápida (ej: f3):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=1, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_key_lag.grid(row=1, column=1, pady=2, sticky="w")
+btn_captura_lag = tk.Button(frame_lag_seccion, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_lag.config(command=lambda: iniciar_captura_hotkey(entry_key_lag, btn_captura_lag))
+btn_captura_lag.grid(row=1, column=2, padx=(5, 0), pady=2)
+
+btn_lagswitch = tk.Button(frame_lag_seccion, text="Activar Lag Switch", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_lag_switch)
+btn_lagswitch.grid(row=2, column=0, columnspan=2, pady=6)
+
+btn_aplicar_hotkeys = tk.Button(contenedor_central, text="Guardar Teclas", width=22, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=actualizar_hotkeys)
+btn_aplicar_hotkeys.grid(row=3, column=0, columnspan=2, pady=10)
+
+# --- PANEL PRISON LIFE (SHUFFLE RELOAD) ---
+frame_prison_life = tk.Frame(frame_principal, bg="#121212")
+frame_larping_legends = tk.Frame(frame_principal, bg="#121212")
+frame_recorder = tk.Frame(frame_principal, bg="#121212")
+
+contenedor_recorder = tk.Frame(frame_recorder, bg="#121212")
+contenedor_recorder.place(relx=0.5, rely=0.5, anchor="center")
+tk.Label(
+    contenedor_recorder,
+    text="Recorder de teclado y mouse",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 11, "bold")
+).pack(pady=(0, 8))
+tk.Label(
+    contenedor_recorder,
+    text="Cambia a Roblox para grabar; al salir del juego, la grabación se detiene.\n"
+         "La reproducción usa posiciones absolutas del cursor y la misma resolución.",
+    bg="#121212",
+    fg="#aaaaaa",
+    justify=tk.CENTER,
+    font=("Segoe UI", 9)
+).pack(pady=(0, 12))
+frame_recorder_botones = tk.Frame(contenedor_recorder, bg="#121212")
+frame_recorder_botones.pack(pady=4)
+tk.Button(
+    frame_recorder_botones,
+    text="Grabar",
+    width=12,
+    bg="#552222",
+    fg="white",
+    activebackground="#773333",
+    activeforeground="white",
+    bd=0,
+    command=iniciar_grabacion_recorder
+).pack(side=tk.LEFT, padx=4)
+tk.Button(
+    frame_recorder_botones,
+    text="Detener",
+    width=12,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=detener_recorder
+).pack(side=tk.LEFT, padx=4)
+tk.Button(
+    frame_recorder_botones,
+    text="Reproducir",
+    width=12,
+    bg="#1f4037",
+    fg="white",
+    activebackground="#2f5f52",
+    activeforeground="white",
+    bd=0,
+    command=reproducir_recorder
+).pack(side=tk.LEFT, padx=4)
+
+frame_recorder_opciones = tk.Frame(contenedor_recorder, bg="#121212")
+frame_recorder_opciones.pack(pady=(6, 4))
+tk.Label(
+    frame_recorder_opciones, text="Repeticiones (0=infinito):",
+    bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)
+).grid(row=0, column=0, padx=(0, 6), pady=3, sticky="e")
+entry_recorder_repeticiones = tk.Entry(
+    frame_recorder_opciones, width=6, bg="#2d2d2d", fg="white",
+    insertbackground="white", bd=0, justify="center"
+)
+entry_recorder_repeticiones.insert(0, "1")
+entry_recorder_repeticiones.grid(row=0, column=1, padx=(0, 14), pady=3, sticky="w")
+tk.Label(
+    frame_recorder_opciones, text="Velocidad:",
+    bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)
+).grid(row=0, column=2, padx=(0, 6), pady=3, sticky="e")
+combo_recorder_velocidad = ttk.Combobox(
+    frame_recorder_opciones, values=["x0.5", "x1", "x1.5", "x2", "x3"],
+    width=6, state="readonly"
+)
+combo_recorder_velocidad.set("x1")
+combo_recorder_velocidad.grid(row=0, column=3, pady=3, sticky="w")
+tk.Checkbutton(
+    contenedor_recorder,
+    text="Posición relativa a la ventana de Roblox (más fiable si la mueves)",
+    variable=var_recorder_relativo,
+    bg="#121212", fg="white", selectcolor="#2d2d2d",
+    activebackground="#121212", activeforeground="white"
+).pack(pady=(0, 4))
+
+recorder_hotkey_entries = {}
+
+frame_recorder_hotkeys = tk.Frame(contenedor_recorder, bg="#121212")
+frame_recorder_hotkeys.pack(pady=8)
+for indice, (accion, etiqueta, valor_predeterminado) in enumerate((
+    ("start", "Tecla para grabar:", "f6"),
+    ("play", "Tecla para reproducir:", "f7"),
+    ("stop", "Tecla para detener:", "f8")
+)):
+    tk.Label(
+        frame_recorder_hotkeys,
+        text=etiqueta,
+        width=22,
+        anchor="e",
+        bg="#121212",
+        fg="#aaaaaa",
+        font=("Segoe UI", 9)
+    ).grid(row=indice, column=0, padx=(0, 8), pady=3, sticky="e")
+    entrada_hotkey = tk.Entry(
+        frame_recorder_hotkeys,
+        width=12,
+        bg="#2d2d2d",
+        fg="white",
+        insertbackground="white",
+        bd=0,
+        justify="center"
+    )
+    entrada_hotkey.insert(0, valor_predeterminado)
+    entrada_hotkey.grid(row=indice, column=1, pady=3, sticky="w")
+    recorder_hotkey_entries[accion] = entrada_hotkey
+    boton_hotkey = tk.Button(
+        frame_recorder_hotkeys,
+        text="Asignar",
+        width=8,
+        bg="#2d2d2d",
+        fg="white",
+        activebackground="#3d3d3d",
+        activeforeground="white",
+        bd=0
+    )
+    boton_hotkey.config(
+        command=lambda entrada=entrada_hotkey, boton=boton_hotkey:
+            iniciar_captura_hotkey(entrada, boton)
+    )
+    boton_hotkey.grid(row=indice, column=2, padx=(6, 0), pady=3)
+
+tk.Label(
+    contenedor_recorder,
+    text="Macros guardadas",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 9, "bold")
+).pack(pady=(8, 3))
+frame_macro_nombre = tk.Frame(contenedor_recorder, bg="#121212")
+frame_macro_nombre.pack(pady=3)
+tk.Label(
+    frame_macro_nombre,
+    text="Nombre:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(side=tk.LEFT, padx=(0, 6))
+entry_nombre_macro = tk.Entry(
+    frame_macro_nombre,
+    width=20,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0
+)
+entry_nombre_macro.pack(side=tk.LEFT)
+combo_macros_recorder = ttk.Combobox(
+    contenedor_recorder,
+    width=30,
+    state="readonly"
+)
+combo_macros_recorder.pack(pady=3)
+frame_acciones_macro = tk.Frame(contenedor_recorder, bg="#121212")
+frame_acciones_macro.pack(pady=3)
+for texto, comando in (
+    ("Guardar", guardar_macro_recorder),
+    ("Cargar", cargar_macro_recorder),
+    ("Exportar", exportar_macro_recorder),
+    ("Importar", importar_macro_recorder),
+    ("Eliminar", eliminar_macro_recorder)
+):
+    tk.Button(
+        frame_acciones_macro,
+        text=texto,
+        width=9,
+        bg="#2d2d2d",
+        fg="white",
+        activebackground="#3d3d3d",
+        activeforeground="white",
+        bd=0,
+        command=comando
+    ).pack(side=tk.LEFT, padx=2)
+
+tk.Label(
+    contenedor_recorder,
+    text="Acciones grabadas",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 9, "bold")
+).pack(pady=(10, 3))
+frame_lista_eventos_recorder = tk.Frame(contenedor_recorder, bg="#121212")
+frame_lista_eventos_recorder.pack(pady=2)
+lista_eventos_recorder = tk.Listbox(
+    frame_lista_eventos_recorder,
+    width=48,
+    height=6,
+    exportselection=False,
+    bg="#2d2d2d",
+    fg="white",
+    selectbackground="#1f4037",
+    font=("Consolas", 8)
+)
+barra_lista_eventos_recorder = tk.Scrollbar(
+    frame_lista_eventos_recorder, orient=tk.VERTICAL, command=lista_eventos_recorder.yview
+)
+lista_eventos_recorder.configure(yscrollcommand=barra_lista_eventos_recorder.set)
+lista_eventos_recorder.pack(side=tk.LEFT, fill=tk.BOTH)
+barra_lista_eventos_recorder.pack(side=tk.LEFT, fill=tk.Y)
+tk.Button(
+    contenedor_recorder,
+    text="Eliminar acción seleccionada",
+    width=26,
+    bg="#552222",
+    fg="white",
+    activebackground="#773333",
+    activeforeground="white",
+    bd=0,
+    command=eliminar_evento_seleccionado_recorder
+).pack(pady=(4, 2))
+
+barra_recorder_countdown = ttk.Progressbar(contenedor_recorder, orient="horizontal", length=220, mode="determinate", maximum=100)
+barra_recorder_countdown.pack(pady=(0, 4))
+
+lbl_recorder_estado = tk.Label(
+    contenedor_recorder,
+    text="Sin grabaciones en esta sesión.",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9, "bold")
+)
+lbl_recorder_estado.pack(pady=8)
+
+frame_registro = tk.Frame(frame_principal, bg="#121212")
+contenedor_registro = tk.Frame(frame_registro, bg="#121212")
+contenedor_registro.place(relx=0.5, rely=0.5, anchor="center")
+tk.Label(
+    contenedor_registro,
+    text="Registro de actividad",
+    bg="#121212", fg="#00ffcc", font=("Segoe UI", 11, "bold")
+).pack(pady=(0, 4))
+tk.Label(
+    contenedor_registro,
+    text="Aquí aparecen las acciones de Anti-AFK, Autoclicker, Lag Switch,\n"
+         "Fast Gun Swap, Auto Train, Recorder y macros (más reciente arriba).",
+    bg="#121212", fg="#aaaaaa", justify=tk.CENTER, font=("Segoe UI", 9)
+).pack(pady=(0, 10))
+frame_lista_log_global = tk.Frame(contenedor_registro, bg="#121212")
+frame_lista_log_global.pack(pady=4)
+lista_log_global = tk.Listbox(
+    frame_lista_log_global, width=54, height=16, exportselection=False,
+    bg="#2d2d2d", fg="white", selectbackground="#1f4037", font=("Consolas", 8)
+)
+barra_log_global = tk.Scrollbar(frame_lista_log_global, orient=tk.VERTICAL, command=lista_log_global.yview)
+lista_log_global.configure(yscrollcommand=barra_log_global.set)
+lista_log_global.pack(side=tk.LEFT, fill=tk.BOTH)
+barra_log_global.pack(side=tk.LEFT, fill=tk.Y)
+frame_botones_log = tk.Frame(contenedor_registro, bg="#121212")
+frame_botones_log.pack(pady=8)
+tk.Button(
+    frame_botones_log, text="Exportar registro", width=16, bg="#1f4037", fg="white",
+    activebackground="#2f5f52", activeforeground="white", bd=0, command=exportar_log_global
+).pack(side=tk.LEFT, padx=4)
+tk.Button(
+    frame_botones_log, text="Limpiar registro", width=16, bg="#552222", fg="white",
+    activebackground="#773333", activeforeground="white", bd=0, command=limpiar_log_global
+).pack(side=tk.LEFT, padx=4)
+
+contenedor_larping_legends = tk.Frame(frame_larping_legends, bg="#121212")
+contenedor_larping_legends.place(relx=0.5, rely=0.5, anchor="center")
+tk.Label(
+    contenedor_larping_legends,
+    text="Larping Legends - Auto Train",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 10, "bold")
+).pack(pady=(0, 10))
+
+frame_auto_train_slots = tk.Frame(contenedor_larping_legends, bg="#121212")
+frame_auto_train_slots.pack(pady=4)
+for texto, variable in (
+    ("Slot 1", var_auto_train_slot1),
+    ("Slot 2", var_auto_train_slot2),
+    ("Slot 3", var_auto_train_slot3),
+    ("Slot 4", var_auto_train_slot4)
+):
+    tk.Checkbutton(
+        frame_auto_train_slots,
+        text=texto,
+        variable=variable,
+        bg="#121212",
+        fg="white",
+        selectcolor="#2d2d2d",
+        activebackground="#121212",
+        activeforeground="white"
+    ).pack(side=tk.LEFT, padx=3)
+
+tk.Checkbutton(
+    contenedor_larping_legends,
+    text="Clic automático",
+    variable=var_auto_train_click,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(pady=4)
+
+frame_auto_train_options = tk.Frame(contenedor_larping_legends, bg="#121212")
+frame_auto_train_options.pack(pady=4)
+tk.Label(
+    frame_auto_train_options,
+    text="Intervalo (ms):",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(side=tk.LEFT, padx=(0, 8))
+entry_auto_train_delay = tk.Entry(
+    frame_auto_train_options,
+    width=10,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0,
+    justify="center"
+)
+entry_auto_train_delay.insert(0, "100")
+entry_auto_train_delay.pack(side=tk.LEFT)
+combo_auto_train_click_type = ttk.Combobox(
+    frame_auto_train_options,
+    values=["Clic Izquierdo", "Clic Derecho"],
+    width=15,
+    state="readonly"
+)
+combo_auto_train_click_type.set("Clic Izquierdo")
+combo_auto_train_click_type.pack(side=tk.LEFT, padx=(8, 0))
+
+frame_auto_train_hotkey = tk.Frame(contenedor_larping_legends, bg="#121212")
+frame_auto_train_hotkey.pack(pady=4)
+tk.Label(
+    frame_auto_train_hotkey,
+    text="Tecla de inicio/parada:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(side=tk.LEFT, padx=(0, 8))
+entry_auto_train_key = tk.Entry(
+    frame_auto_train_hotkey,
+    width=12,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0,
+    justify="center"
+)
+entry_auto_train_key.insert(0, "f5")
+entry_auto_train_key.pack(side=tk.LEFT)
+btn_captura_auto_train = tk.Button(
+    frame_auto_train_hotkey,
+    text="Asignar",
+    width=8,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=lambda: iniciar_captura_hotkey(entry_auto_train_key, btn_captura_auto_train)
+)
+btn_captura_auto_train.pack(side=tk.LEFT, padx=(6, 0))
+
+lbl_auto_train_estado = tk.Label(
+    contenedor_larping_legends,
+    text="Auto Train: detenido",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9, "bold")
+)
+lbl_auto_train_estado.pack(pady=4)
+btn_auto_train = tk.Button(
+    contenedor_larping_legends,
+    text="Iniciar Auto Train",
+    width=22,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=toggle_auto_train
+)
+btn_auto_train.pack(pady=6)
+
+contenedor_pl = tk.Frame(frame_prison_life, bg="#121212")
+contenedor_pl.place(relx=0.5, rely=0.5, anchor="center")
+
+tk.Label(contenedor_pl, text="Prison Life - Shuffle Reload", bg="#121212", fg="#00ffcc", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
+
+entry_key_shuffle = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_key_shuffle.insert(0, "r")
+tk.Label(contenedor_pl, text="Tecla rápida (ej: r):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=1, column=0, padx=(0, 8), pady=4, sticky="e")
+entry_key_shuffle.grid(row=1, column=1, pady=4, sticky="w")
+btn_captura_shuffle = tk.Button(contenedor_pl, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_shuffle.config(command=lambda: iniciar_captura_hotkey(entry_key_shuffle, btn_captura_shuffle))
+btn_captura_shuffle.grid(row=1, column=2, padx=(5, 0), pady=4)
+
+entry_shuffle_delay = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_shuffle_delay.insert(0, "50")
+tk.Label(contenedor_pl, text="Delay (ms):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=2, column=0, padx=(0, 8), pady=4, sticky="e")
+entry_shuffle_delay.grid(row=2, column=1, pady=4, sticky="w")
+
+# Selección de Slots de Armas
+frame_slots = tk.Frame(contenedor_pl, bg="#121212")
+frame_slots.grid(row=3, column=0, columnspan=2, pady=8)
+
+tk.Checkbutton(frame_slots, text="Slot 1", variable=var_slot1, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+tk.Checkbutton(frame_slots, text="Slot 2", variable=var_slot2, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+tk.Checkbutton(frame_slots, text="Slot 3", variable=var_slot3, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+tk.Checkbutton(frame_slots, text="Slot 4", variable=var_slot4, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").pack(side=tk.LEFT, padx=3)
+
+# Sonido de Confirmación
+tk.Checkbutton(contenedor_pl, text="Sonido de confirmación (Beep)", variable=var_beep, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").grid(row=4, column=0, columnspan=2, pady=4)
+
+btn_probar_shuffle = tk.Button(contenedor_pl, text="Ejecutar Shuffle Reload", width=22, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=ejecutar_shuffle_reload)
+btn_probar_shuffle.grid(row=5, column=0, columnspan=2, pady=10)
+
+btn_guardar_pl = tk.Button(contenedor_pl, text="Guardar Configuración", width=22, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=actualizar_hotkeys)
+btn_guardar_pl.grid(row=6, column=0, columnspan=2, pady=4)
+
+tk.Label(contenedor_pl, text="Fast Gun Swap", bg="#121212", fg="#00ffcc", font=("Segoe UI", 10, "bold")).grid(row=7, column=0, columnspan=2, pady=(8, 4))
+
+entry_fast_swap_key = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_fast_swap_key.insert(0, "f4")
+tk.Label(contenedor_pl, text="Tecla de inicio (F4):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=8, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_fast_swap_key.grid(row=8, column=1, pady=2, sticky="w")
+btn_captura_fast_swap = tk.Button(contenedor_pl, text="Asignar", width=8, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0)
+btn_captura_fast_swap.config(command=lambda: iniciar_captura_hotkey(entry_fast_swap_key, btn_captura_fast_swap))
+btn_captura_fast_swap.grid(row=8, column=2, padx=(5, 0), pady=2)
+
+entry_fast_swap_delay = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_fast_swap_delay.insert(0, "50")
+tk.Label(contenedor_pl, text="Delay de disparo (ms):", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=9, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_fast_swap_delay.grid(row=9, column=1, pady=2, sticky="w")
+
+entry_fast_swap_secondary = tk.Entry(contenedor_pl, width=16, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_fast_swap_secondary.insert(0, "shift")
+tk.Label(contenedor_pl, text="Tecla secundaria:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=10, column=0, padx=(0, 8), pady=2, sticky="e")
+entry_fast_swap_secondary.grid(row=10, column=1, pady=2, sticky="w")
+
+tk.Checkbutton(contenedor_pl, text="Modo mantener tecla secundaria (desmarcado = alternar)", variable=var_fast_swap_hold, bg="#121212", fg="white", selectcolor="#2d2d2d", activebackground="#121212", activeforeground="white").grid(row=11, column=0, columnspan=2, pady=4)
+
+lbl_fast_gun_swap = tk.Label(contenedor_pl, text="Fast Gun Swap: detenido", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9, "bold"))
+lbl_fast_gun_swap.grid(row=12, column=0, columnspan=2, pady=6)
+
+tk.Label(contenedor_pl, text="Perfil:", width=20, anchor="e", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=13, column=0, padx=(0, 8), pady=2, sticky="e")
+combo_perfiles = ttk.Combobox(contenedor_pl, width=14, state="readonly")
+combo_perfiles.grid(row=13, column=1, pady=2, sticky="w")
+
+entry_perfil_nombre = tk.Entry(contenedor_pl, width=14, bg="#2d2d2d", fg="white", insertbackground="white", bd=0, justify="center")
+entry_perfil_nombre.grid(row=14, column=0, pady=4, sticky="e")
+frame_acciones_perfil = tk.Frame(contenedor_pl, bg="#121212")
+frame_acciones_perfil.grid(row=14, column=1, pady=4, sticky="w")
+tk.Button(frame_acciones_perfil, text="Guardar", width=7, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=guardar_perfil).pack(side=tk.LEFT, padx=2)
+tk.Button(frame_acciones_perfil, text="Cargar", width=7, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=cargar_perfil).pack(side=tk.LEFT, padx=2)
+tk.Button(frame_acciones_perfil, text="Exportar", width=7, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=exportar_perfil).pack(side=tk.LEFT, padx=2)
+tk.Button(frame_acciones_perfil, text="Importar", width=7, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=importar_perfil).pack(side=tk.LEFT, padx=2)
+
+# --- PANEL TEXTURAS ---
+frame_texturas = tk.Frame(frame_principal, bg="#121212")
+
+contenedor_tex = tk.Frame(frame_texturas, bg="#121212")
+contenedor_tex.place(relx=0.5, rely=0.5, anchor="center")
+
+tk.Label(contenedor_tex, text="Gestor de Texturas de Roblox", bg="#121212", fg="#00ffcc", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, pady=(0, 10))
+tk.Label(contenedor_tex, text="Optimiza las texturas del juego para maximizar tus FPS.", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 8)).grid(row=1, column=0, pady=(0, 15))
+
+btn_eliminar_tex = tk.Button(contenedor_tex, text="Eliminar Texturas (FPS Boost)", width=28, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=eliminar_texturas_roblox)
+btn_eliminar_tex.grid(row=2, column=0, pady=6)
+
+btn_eliminar_agua = tk.Button(contenedor_tex, text="Eliminar Textura del Agua", width=28, bg="#2d2d2d", fg="white", activebackground="#3d3d3d", activeforeground="white", bd=0, command=eliminar_agua_roblox)
+btn_eliminar_agua.grid(row=3, column=0, pady=6)
+
+tk.Label(contenedor_tex, text="Categoría personalizada:", bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)).grid(row=4, column=0, pady=(8, 2))
+combo_categoria_textura = ttk.Combobox(
+    contenedor_tex,
+    values=tuple(TEXTURE_CATEGORIES),
+    width=24,
+    state="readonly"
+)
+combo_categoria_textura.set("Cielo")
+combo_categoria_textura.grid(row=5, column=0, pady=2)
+
+zona_drop_texturas = tk.Frame(
+    contenedor_tex,
+    width=140,
+    height=140,
+    bg="#181818",
+    highlightbackground="#00aa66",
+    highlightthickness=1,
+    relief="flat"
+)
+zona_drop_texturas.grid(row=6, column=0, pady=8)
+zona_drop_texturas.grid_propagate(False)
+if es_administrador():
+    texto_drop_texturas = "Arrastre bloqueado como administrador\nUsa los botones de selección"
+else:
+    texto_drop_texturas = "Suelta texturas aquí" if DND_FILES else "Arrastrar y soltar no disponible"
+label_drop_texturas = tk.Label(
+    zona_drop_texturas,
+    text=texto_drop_texturas,
+    bg="#181818",
+    fg="#a8cbb8",
+    justify=tk.CENTER,
+    wraplength=120,
+    font=("Segoe UI", 9)
+)
+label_drop_texturas.pack(expand=True, fill=tk.BOTH, padx=8, pady=8)
+if DND_FILES:
+    for widget_drop in (zona_drop_texturas, label_drop_texturas):
+        widget_drop.drop_target_register(DND_FILES)
+        widget_drop.dnd_bind("<<Drop>>", manejar_drop_texturas)
+
+btn_instalar_paquete_tex = tk.Button(
+    contenedor_tex,
+    text="Instalar categoría seleccionada",
+    width=30,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=instalar_paquete_texturas
+)
+btn_instalar_paquete_tex.grid(row=7, column=0, pady=6)
+
+btn_seleccionar_archivos_tex = tk.Button(
+    contenedor_tex,
+    text="Seleccionar archivos...",
+    width=30,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=seleccionar_archivos_texturas
+)
+btn_seleccionar_archivos_tex.grid(row=8, column=0, pady=6)
+
+btn_restaurar_categoria = tk.Button(
+    contenedor_tex,
+    text="Restaurar categoría",
+    width=28,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=restaurar_categoria_texturas
+)
+btn_restaurar_categoria.grid(row=9, column=0, pady=6)
+
+btn_restaurar_tex = tk.Button(contenedor_tex, text="Restaurar Texturas Originales", width=28, bg="#1f4037", fg="white", activebackground="#2f5f52", activeforeground="white", bd=0, command=restaurar_texturas_roblox)
+btn_restaurar_tex.grid(row=10, column=0, pady=12)
+
+modo_compacto_activo = False
+tamano_ventana_normal = None
+
+frame_compacto = tk.Frame(root, bg="#121212")
+barra_compacta = tk.Frame(frame_compacto, bg="#1e1e1e")
+barra_compacta.pack(fill=tk.X)
+tk.Label(barra_compacta, text="GGSPQE", bg="#1e1e1e", fg=app_accent_color, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=8, pady=5)
+
+frame_botones_compactos = tk.Frame(frame_compacto, bg="#121212")
+frame_botones_compactos.pack(pady=10)
+tk.Button(
+    frame_botones_compactos, text="Anti-AFK", width=13, bg="#2d2d2d", fg="white",
+    activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_anti_afk
+).grid(row=0, column=0, padx=3, pady=3)
+tk.Button(
+    frame_botones_compactos, text="Autoclicker", width=13, bg="#2d2d2d", fg="white",
+    activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_autoclicker
+).grid(row=0, column=1, padx=3, pady=3)
+tk.Button(
+    frame_botones_compactos, text="Lag Switch", width=13, bg="#2d2d2d", fg="white",
+    activebackground="#3d3d3d", activeforeground="white", bd=0, command=toggle_lag_switch
+).grid(row=1, column=0, padx=3, pady=3)
+tk.Button(
+    frame_botones_compactos, text="Detener todo", width=13, bg="#552222", fg="white",
+    activebackground="#773333", activeforeground="white", bd=0, command=detener_todo
+).grid(row=1, column=1, padx=3, pady=3)
+
+lbl_estado_compacto = tk.Label(frame_compacto, text="", bg="#121212", fg="#aaaaaa", font=("Consolas", 8), justify=tk.LEFT)
+lbl_estado_compacto.pack(pady=(4, 10), padx=10, fill=tk.X)
+
+def actualizar_estado_compacto():
+    if not modo_compacto_activo:
+        return
+    estados = (("AFK", anti_afk_activo), ("Click", autoclicker_activo), ("Lag", lag_switch_activo))
+    lbl_estado_compacto.config(text="   ".join(f"{n}: {'ON' if a else 'off'}" for n, a in estados))
+    root.after(500, actualizar_estado_compacto)
+
+def restaurar_modo_normal():
+    global modo_compacto_activo
+    if not modo_compacto_activo:
+        return
+    frame_compacto.pack_forget()
+    frame_izquierdo.pack(side=tk.LEFT, fill=tk.Y)
+    frame_principal.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+    if tamano_ventana_normal:
+        root.geometry(tamano_ventana_normal)
+    modo_compacto_activo = False
+    if "btn_modo_compacto" in globals():
+        btn_modo_compacto.config(text="Modo compacto")
+
+def activar_modo_compacto():
+    global modo_compacto_activo, tamano_ventana_normal
+    if modo_compacto_activo:
+        return
+    tamano_ventana_normal = root.geometry()
+    frame_izquierdo.pack_forget()
+    frame_principal.pack_forget()
+    frame_compacto.pack(fill=tk.BOTH, expand=True)
+    root.geometry("300x220")
+    modo_compacto_activo = True
+    if "btn_modo_compacto" in globals():
+        btn_modo_compacto.config(text="Salir del modo compacto")
+    actualizar_estado_compacto()
+
+def alternar_modo_compacto():
+    if modo_compacto_activo:
+        restaurar_modo_normal()
+    else:
+        activar_modo_compacto()
+
+tk.Button(
+    barra_compacta, text="◱", bg="#1e1e1e", fg="white", bd=0, font=("Segoe UI", 9),
+    command=restaurar_modo_normal
+).pack(side=tk.RIGHT, padx=6)
+
+frame_estadisticas = tk.Frame(frame_principal, bg="#121212")
+contenedor_estadisticas = tk.Frame(frame_estadisticas, bg="#121212")
+contenedor_estadisticas.place(relx=0.5, rely=0.5, anchor="center")
+tk.Label(
+    contenedor_estadisticas, text="Estadísticas", bg="#121212", fg="#00ffcc", font=("Segoe UI", 11, "bold")
+).grid(row=0, column=0, columnspan=2, pady=(0, 14))
+
+ETIQUETAS_ESTADISTICAS = (
+    ("Tiempo de esta sesión:", "sesion"),
+    ("Clics enviados:", "clics"),
+    ("Acciones Anti-AFK realizadas:", "acciones_afk"),
+    ("Macros reproducidas:", "macros_reproducidas"),
+    ("Grabaciones guardadas:", "grabaciones"),
+)
+lbl_valores_estadisticas = {}
+for fila, (etiqueta, clave) in enumerate(ETIQUETAS_ESTADISTICAS, start=1):
+    tk.Label(
+        contenedor_estadisticas, text=etiqueta, width=26, anchor="e",
+        bg="#121212", fg="#aaaaaa", font=("Segoe UI", 9)
+    ).grid(row=fila, column=0, padx=(0, 10), pady=4, sticky="e")
+    lbl_valor = tk.Label(contenedor_estadisticas, text="0", anchor="w", bg="#121212", fg="white", font=("Segoe UI", 9, "bold"))
+    lbl_valor.grid(row=fila, column=1, pady=4, sticky="w")
+    lbl_valores_estadisticas[clave] = lbl_valor
+
+def actualizar_estadisticas_ui():
+    segundos = int(time.time() - tiempo_inicio_app)
+    horas, resto = divmod(segundos, 3600)
+    minutos, segundos = divmod(resto, 60)
+    lbl_valores_estadisticas["sesion"].config(text=f"{horas:02d}:{minutos:02d}:{segundos:02d}")
+    for clave in ("clics", "acciones_afk", "macros_reproducidas", "grabaciones"):
+        lbl_valores_estadisticas[clave].config(text=str(estadisticas[clave]))
+    root.after(1000, actualizar_estadisticas_ui)
+
+def reiniciar_estadisticas():
+    if not messagebox.askyesno("Reiniciar estadísticas", "¿Poner todos los contadores a cero?"):
+        return
+    for clave in estadisticas:
+        estadisticas[clave] = 0
+    guardar_configuracion()
+    registrar_log("Estadísticas", "Contadores reiniciados")
+
+tk.Button(
+    contenedor_estadisticas, text="Reiniciar estadísticas", width=22, bg="#552222", fg="white",
+    activebackground="#773333", activeforeground="white", bd=0, command=reiniciar_estadisticas
+).grid(row=len(ETIQUETAS_ESTADISTICAS) + 1, column=0, columnspan=2, pady=(14, 0))
+
+frame_acerca = tk.Frame(frame_principal, bg="#121212")
+tk.Label(
+    frame_acerca,
+    text="Apariencia",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 10, "bold")
+).pack(anchor="w", padx=24, pady=(10, 4))
+frame_color_app = tk.Frame(frame_acerca, bg="#121212")
+frame_color_app.pack(anchor="w", padx=24, pady=(2, 8))
+tk.Label(
+    frame_color_app,
+    text="Color de acento:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(side=tk.LEFT, padx=(0, 8))
+lbl_muestra_color = tk.Label(
+    frame_color_app,
+    text="   ",
+    bg=app_accent_color,
+    relief="solid",
+    bd=1
+)
+lbl_muestra_color.pack(side=tk.LEFT, padx=(0, 8))
+tk.Button(
+    frame_color_app,
+    text="Elegir color...",
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=elegir_color_app
+).pack(side=tk.LEFT)
+tk.Label(
+    frame_acerca,
+    text="Tema:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(anchor="w", padx=24, pady=(4, 2))
+combo_tema_app = ttk.Combobox(
+    frame_acerca,
+    values=tuple(APP_THEMES),
+    width=20,
+    state="readonly"
+)
+combo_tema_app.set(app_theme_name)
+combo_tema_app.pack(anchor="w", padx=24, pady=2)
+combo_tema_app.bind("<<ComboboxSelected>>", elegir_tema_app)
+tk.Label(
+    frame_acerca,
+    text="Tamaño de interfaz:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(anchor="w", padx=24, pady=(8, 2))
+combo_escala_app = ttk.Combobox(
+    frame_acerca,
+    values=("Compacta", "Normal", "Grande"),
+    width=20,
+    state="readonly"
+)
+combo_escala_app.set({0.9: "Compacta", 1.0: "Normal", 1.15: "Grande"}.get(app_ui_scale, "Normal"))
+combo_escala_app.pack(anchor="w", padx=24, pady=2)
+combo_escala_app.bind("<<ComboboxSelected>>", elegir_escala_app)
+tk.Label(
+    frame_acerca,
+    text="Opacidad de la ventana:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(anchor="w", padx=24, pady=(8, 2))
+escala_opacidad = tk.Scale(
+    frame_acerca, from_=60, to=100, orient=tk.HORIZONTAL, length=200,
+    bg="#121212", fg="#aaaaaa", highlightthickness=0, troughcolor="#2d2d2d",
+    activebackground=app_accent_color, font=("Segoe UI", 8),
+    command=aplicar_opacidad
+)
+escala_opacidad.set(100)
+escala_opacidad.pack(anchor="w", padx=24, pady=2)
+escala_opacidad.bind("<ButtonRelease-1>", guardar_opacidad)
+tk.Checkbutton(
+    frame_acerca,
+    text="Sonidos de la aplicación",
+    variable=var_sonidos_app,
+    command=guardar_opciones_audio,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(anchor="w", padx=24, pady=(8, 2))
+tk.Checkbutton(
+    frame_acerca,
+    text="Avisos de estado del recorder",
+    variable=var_avisos_recorder,
+    command=guardar_opciones_audio,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(anchor="w", padx=24, pady=2)
+tk.Label(
+    frame_acerca,
+    text="Color del perfil seleccionado:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(anchor="w", padx=24, pady=(10, 2))
+frame_color_perfil = tk.Frame(frame_acerca, bg="#121212")
+frame_color_perfil.pack(anchor="w", padx=24, pady=2)
+lbl_muestra_color_perfil = tk.Label(
+    frame_color_perfil,
+    text="   ",
+    bg=app_accent_color,
+    relief="solid",
+    bd=1
+)
+lbl_muestra_color_perfil.pack(side=tk.LEFT, padx=(0, 8))
+tk.Button(
+    frame_color_perfil,
+    text="Elegir color del perfil...",
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=elegir_color_perfil
+).pack(side=tk.LEFT)
+tk.Label(
+    frame_acerca,
+    text="Orden del menú:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(anchor="w", padx=24, pady=(10, 2))
+frame_orden_menu = tk.Frame(frame_acerca, bg="#121212")
+frame_orden_menu.pack(anchor="w", padx=24, pady=2)
+lista_orden_menu = tk.Listbox(
+    frame_orden_menu,
+    width=20,
+    height=6,
+    exportselection=False,
+    bg="#2d2d2d",
+    fg="white",
+    selectbackground="#1f4037"
+)
+lista_orden_menu.pack(side=tk.LEFT)
+frame_boton_orden_menu = tk.Frame(frame_orden_menu, bg="#121212")
+frame_boton_orden_menu.pack(side=tk.LEFT, padx=(8, 0))
+tk.Button(
+    frame_boton_orden_menu,
+    text="Subir",
+    width=9,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=lambda: mover_seccion_menu(-1)
+).pack(pady=2)
+tk.Button(
+    frame_boton_orden_menu,
+    text="Bajar",
+    width=9,
+    bg="#2d2d2d",
+    fg="white",
+    activebackground="#3d3d3d",
+    activeforeground="white",
+    bd=0,
+    command=lambda: mover_seccion_menu(1)
+).pack(pady=2)
+combo_perfiles.bind("<<ComboboxSelected>>", actualizar_muestra_color_perfil)
+tk.Label(
+    frame_acerca,
+    text="Copia de seguridad",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 10, "bold")
+).pack(anchor="w", padx=24, pady=(10, 4))
+frame_backup = tk.Frame(frame_acerca, bg="#121212")
+frame_backup.pack(anchor="w", padx=24, pady=2)
+tk.Button(
+    frame_backup, text="Exportar todo", width=16, bg="#1f4037", fg="white",
+    activebackground="#2f5f52", activeforeground="white", bd=0,
+    command=exportar_configuracion_completa
+).pack(side=tk.LEFT, padx=(0, 6))
+tk.Button(
+    frame_backup, text="Importar todo", width=16, bg="#2d2d2d", fg="white",
+    activebackground="#3d3d3d", activeforeground="white", bd=0,
+    command=importar_configuracion_completa
+).pack(side=tk.LEFT)
+
+tk.Label(
+    frame_acerca,
+    text="Bandeja del sistema y overlay",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 10, "bold")
+).pack(anchor="w", padx=24, pady=(10, 4))
+if pystray is not None:
+    tk.Checkbutton(
+        frame_acerca,
+        text="Minimizar a la bandeja al cerrar la ventana",
+        variable=var_bandeja_al_cerrar,
+        command=guardar_configuracion,
+        bg="#121212", fg="white", selectcolor="#2d2d2d",
+        activebackground="#121212", activeforeground="white"
+    ).pack(anchor="w", padx=24, pady=2)
+    tk.Button(
+        frame_acerca, text="Minimizar ahora", width=16, bg="#2d2d2d", fg="white",
+        activebackground="#3d3d3d", activeforeground="white", bd=0,
+        command=minimizar_a_bandeja
+    ).pack(anchor="w", padx=24, pady=2)
+else:
+    tk.Label(
+        frame_acerca,
+        text="Instala 'pystray' y 'pillow' (pip install pystray pillow) para usar la bandeja.",
+        bg="#121212", fg="#ffcc00", font=("Segoe UI", 8), wraplength=280, justify=tk.LEFT
+    ).pack(anchor="w", padx=24, pady=2)
+btn_overlay = tk.Button(
+    frame_acerca, text="Mostrar overlay flotante", width=22, bg="#2d2d2d", fg="white",
+    activebackground="#3d3d3d", activeforeground="white", bd=0,
+    command=alternar_overlay
+)
+btn_overlay.pack(anchor="w", padx=24, pady=(6, 2))
+btn_modo_compacto = tk.Button(
+    frame_acerca, text="Modo compacto", width=22, bg="#2d2d2d", fg="white",
+    activebackground="#3d3d3d", activeforeground="white", bd=0,
+    command=alternar_modo_compacto
+)
+btn_modo_compacto.pack(anchor="w", padx=24, pady=2)
+
+tk.Label(
+    frame_acerca,
+    text="Notificaciones e inicio automático",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 10, "bold")
+).pack(anchor="w", padx=24, pady=(10, 4))
+if _toaster is not None:
+    tk.Checkbutton(
+        frame_acerca,
+        text="Notificaciones de Windows para eventos importantes",
+        variable=var_notificaciones_activas,
+        command=guardar_configuracion,
+        bg="#121212", fg="white", selectcolor="#2d2d2d",
+        activebackground="#121212", activeforeground="white"
+    ).pack(anchor="w", padx=24, pady=2)
+else:
+    tk.Label(
+        frame_acerca,
+        text="Instala 'win10toast' (pip install win10toast) para notificaciones de Windows.",
+        bg="#121212", fg="#ffcc00", font=("Segoe UI", 8), wraplength=280, justify=tk.LEFT
+    ).pack(anchor="w", padx=24, pady=2)
+if winreg is not None:
+    tk.Checkbutton(
+        frame_acerca,
+        text="Iniciar GGSPQE automáticamente con Windows",
+        variable=var_inicio_automatico,
+        command=alternar_inicio_automatico,
+        bg="#121212", fg="white", selectcolor="#2d2d2d",
+        activebackground="#121212", activeforeground="white"
+    ).pack(anchor="w", padx=24, pady=2)
+tk.Checkbutton(
+    frame_acerca,
+    text="Esquinas redondeadas (solo Windows 11)",
+    variable=var_esquinas_redondeadas,
+    command=alternar_esquinas_redondeadas,
+    bg="#121212", fg="white", selectcolor="#2d2d2d",
+    activebackground="#121212", activeforeground="white"
+).pack(anchor="w", padx=24, pady=2)
+
+tk.Label(
+    frame_acerca,
+    text="Perfil público de Roblox",
+    bg="#121212",
+    fg="#00ffcc",
+    font=("Segoe UI", 10, "bold")
+).pack(anchor="w", padx=24, pady=(10, 4))
+tk.Label(
+    frame_acerca,
+    text="Nombre de usuario:",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 9)
+).pack(anchor="w", padx=24, pady=(4, 2))
+entry_roblox_username = tk.Entry(
+    frame_acerca,
+    width=28,
+    bg="#2d2d2d",
+    fg="white",
+    insertbackground="white",
+    bd=0
+)
+entry_roblox_username.pack(anchor="w", padx=24, pady=2)
+tk.Button(
+    frame_acerca,
+    text="Cargar perfil",
+    bg="#1f4037",
+    fg="white",
+    activebackground="#2f5f52",
+    activeforeground="white",
+    bd=0,
+    command=cargar_perfil_roblox
+).pack(anchor="w", padx=24, pady=6)
+lbl_estado_perfil_roblox = tk.Label(
+    frame_acerca,
+    text="Se consulta únicamente información pública del perfil.",
+    bg="#121212",
+    fg="#aaaaaa",
+    font=("Segoe UI", 8)
+)
+lbl_estado_perfil_roblox.pack(anchor="w", padx=24, pady=(0, 8))
+tk.Checkbutton(
+    frame_acerca,
+    text="Mostrar animación de inicio",
+    variable=var_intro_animacion,
+    command=guardar_configuracion,
+    bg="#121212",
+    fg="white",
+    selectcolor="#2d2d2d",
+    activebackground="#121212",
+    activeforeground="white"
+).pack(anchor="w", padx=24, pady=8)
+
+
+# Cargar configuración e iniciar
+cargar_configuracion()
+actualizar_hotkeys()
+resaltar_navegacion("Roblox")
+modernizar_widgets(root)
+
+for _widget_tooltip, _texto_tooltip in (
+    (entry_afk_tiempo, "Tiempo mínimo de espera antes de la próxima acción Anti-AFK."),
+    (entry_afk_tiempo_max, "Tiempo máximo si el intervalo aleatorio está activado."),
+    (combo_accion_afk, "Qué hace el Anti-AFK: saltar, caminar, mover la cámara, o variar cada vez."),
+    (entry_afk_umbral_actividad, "Si ya usaste el mouse/teclado hace menos de estos segundos, se omite la acción."),
+    (btn_antiafk, "Activa o desactiva el Anti-AFK."),
+    (entry_click_tiempo, "Intervalo entre cada clic del autoclicker, en milisegundos."),
+    (combo_tipo_clic, "Botón del mouse que se simula al hacer clic."),
+    (btn_autoclicker, "Activa o desactiva el autoclicker."),
+    (entry_lag_duracion, "Duración del corte de red en milisegundos. 0 = hasta que lo detengas manualmente."),
+    (btn_lagswitch, "Bloquea temporalmente la conexión de Roblox mediante el Firewall de Windows."),
+    (btn_texturas, "Optimiza o restaura las texturas de Roblox para mejorar el rendimiento."),
+    (lista_historial_afk, "Últimas acciones Anti-AFK realizadas u omitidas."),
+    (entry_recorder_repeticiones, "Cuántas veces se repite la macro al reproducirla. 0 = en bucle."),
+    (combo_recorder_velocidad, "Velocidad de reproducción de la macro respecto a como fue grabada."),
+    (btn_overlay, "Muestra una ventana flotante con el estado de todas las funciones activas."),
+    (entry_buscar, "Escribe una palabra clave (ej: macro, textura, lag) y pulsa Enter."),
+    (lista_log_global, "Historial de todas las activaciones y acciones de la aplicación."),
+):
+    try:
+        agregar_tooltip(_widget_tooltip, _texto_tooltip)
+    except NameError:
+        pass
+if roblox_profile_username:
+    root.after(250, cargar_perfil_roblox)
+root.after(20, procesar_eventos_hotkey)
+root.after(120000, guardado_automatico_periodico)
+root.after(100, actualizar_panel_estado)
+root.after(1000, actualizar_estadisticas_ui)
+root.after(500, actualizar_leds_menu)
+
+def ajustar_botones_ventana(event=None):
+    factor = min(1.5, max(1.0, root.winfo_width() / ancho_ventana))
+    frame_izquierdo.config(width=round(160 * factor))
+    for boton, ancho_base in botones_redimensionables:
+        boton.config(width=round(ancho_base * factor))
+
+def buscar_botones(widget):
+    botones = []
+    for hijo in widget.winfo_children():
+        if isinstance(hijo, tk.Button):
+            botones.append((hijo, int(hijo.cget("width"))))
+        botones.extend(buscar_botones(hijo))
+    return botones
+
+botones_redimensionables = buscar_botones(root)
+root.bind("<Configure>", ajustar_botones_ventana)
+root.after_idle(ajustar_botones_ventana)
+
+def mostrar_intro_digital():
+    root.withdraw()
+    intro = tk.Toplevel(root)
+    intro.overrideredirect(True)
+    intro.geometry(f"{ancho_ventana}x{alto_ventana}+{pos_x}+{pos_y}")
+
+    fondo = "#080d0c"
+    lienzo = tk.Canvas(intro, width=ancho_ventana, height=alto_ventana, bg=fondo, highlightthickness=0)
+    lienzo.pack(fill=tk.BOTH, expand=True)
+
+    columnas = []
+    cantidad_columnas = ancho_ventana // 20
+    for indice in range(cantidad_columnas):
+        x = indice * 20 + 10
+        y = random.randint(-alto_ventana, alto_ventana)
+        velocidad = random.randint(5, 12)
+        estela = random.randint(7, 13)
+        elementos = [
+            lienzo.create_text(x, y, text="", fill="#36ff9a", font=("Consolas", 11, "bold"))
+            for _ in range(estela)
+        ]
+        columnas.append({"x": x, "y": y, "velocidad": velocidad, "estela": estela, "elementos": elementos})
+
+    lienzo.create_text(
+        ancho_ventana // 2 + 2,
+        alto_ventana // 2 - 12 + 2,
+        text="GGSPQE",
+        fill="#06100b",
+        font=("Consolas", 29, "bold")
+    )
+    lienzo.create_text(
+        ancho_ventana // 2,
+        alto_ventana // 2 - 12,
+        text="GGSPQE",
+        fill="#e5fff0",
+        font=("Consolas", 29, "bold")
+    )
+    lienzo.create_line(
+        ancho_ventana // 2 - 90,
+        alto_ventana // 2 + 18,
+        ancho_ventana // 2 + 90,
+        alto_ventana // 2 + 18,
+        fill="#24d879",
+        width=2
+    )
+    lienzo.create_text(
+        ancho_ventana // 2,
+        alto_ventana // 2 + 43,
+        text="ROBLOX UTILITY",
+        fill="#7dcea0",
+        font=("Consolas", 10)
+    )
+
+    colores_estela = ("#25d879", "#1bad61", "#13834b", "#0e633a", "#0a492d", "#083923")
+    activa = True
+
+    def animar():
+        nonlocal activa
+        if not activa or not intro.winfo_exists():
+            return
+        for columna in columnas:
+            columna["y"] += columna["velocidad"]
+            if columna["y"] - columna["estela"] * 18 > alto_ventana:
+                columna["y"] = random.randint(-260, -40)
+                columna["velocidad"] = random.randint(5, 12)
+                columna["estela"] = random.randint(7, 13)
+            for indice, elemento in enumerate(columna["elementos"]):
+                lienzo.coords(elemento, columna["x"], columna["y"] - indice * 18)
+                lienzo.itemconfig(
+                    elemento,
+                    text=str(random.randint(0, 9)),
+                    fill="#baffd4" if indice == 0 else colores_estela[min(indice - 1, len(colores_estela) - 1)]
+                )
+        intro.after(55, animar)
+
+    def terminar():
+        nonlocal activa
+        if not activa:
+            return
+        activa = False
+        intro.destroy()
+        root.deiconify()
+        root.lift()
+
+    boton_saltar = tk.Button(
+        intro,
+        text="Saltar intro",
+        command=terminar,
+        bg="#13251b",
+        fg="#d8ffe7",
+        activebackground="#1d3d2b",
+        activeforeground="white",
+        bd=0,
+        padx=12,
+        pady=5
+    )
+    lienzo.create_window(ancho_ventana - 78, alto_ventana - 26, window=boton_saltar)
+    intro.bind("<KeyPress>", lambda evento: terminar())
+    animar()
+    intro.after(2400, terminar)
+    intro.focus_force()
+
+if intro_animacion_activa:
+    mostrar_intro_digital()
+else:
+    root.deiconify()
+
+root.mainloop()
